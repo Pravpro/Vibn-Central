@@ -1,0 +1,19 @@
+{
+  "name": "Shopify-Product-Uploader-App",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.21.0",
+    "cookie": "^0.4.1",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "shopify-token": "^4.0.0"
+  }
+}
