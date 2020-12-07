@@ -10,13 +10,20 @@ const dotenv 		= require('dotenv').config(),
 // Requiring Routes
 const authenticationRoutes 	= require(path.resolve('./', path.join('routes', 'authentication')));
 
+app.set("view engine", "ejs");
+app.use(express.static(`${__dirname}/public`));
 
 // Use all routes
 app.use('/shopify', authenticationRoutes);
 
 app.get('/', (req, res) => {
-	res.send('Please add shopify?shop=your-shop-name to your request');
+	res.render('index');
 });
+
+// Show login page
+app.get('/login', (req, res) => {
+	res.render('login');
+})
 
 
 const port = process.env.PORT || 3000;
