@@ -4,10 +4,11 @@ const dotenv 		= require('dotenv').config(),
 	  app 			= express(),
 	  crypto 		= require('crypto'),
 	  querystring 	= require('querystring'),
-	  axios 		= require('axios');
+	  axios 		= require('axios'),
+	  path			= require('path');
 
 // Requiring Routes
-const authenticationRoutes 	= require(".\\routes\\authentication.js");
+const authenticationRoutes 	= require(path.resolve('./', path.join('routes', 'authentication')));
 
 
 // Use all routes
