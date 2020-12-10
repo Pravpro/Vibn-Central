@@ -1,12 +1,14 @@
 <%- include('./partials/header'); %>
 
 <h1>This is the login page</h1>
-
-<p>Enter Store name:</p>
-<input type="text" name="shop" required>
-<button onclick="installApp()">Next</button>
+<form method="GET" action="/Shopify">
+	<label>Enter Shopify Shop Name</label>
+	<input type="text" name="shop" required>
+	<button>Next</button>
+</form>
 <div></div>
 
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 <script type="text/javascript" src="/scripts/login.js"></script>
 
 <%- include('./partials/footer'); %>

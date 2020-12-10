@@ -9,6 +9,7 @@ const dotenv 		= require('dotenv').config(),
 
 // Requiring Routes
 const authenticationRoutes 	= require(path.resolve('./', path.join('routes', 'authentication')));
+const { PORT = 3000 } = process.env;
 
 app.set("view engine", "ejs");
 app.use(express.static(`${__dirname}/public`));
@@ -25,8 +26,6 @@ app.get('/login', (req, res) => {
 	res.render('login');
 })
 
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-	console.log(`Product Uploader App listening on port ${port}!`);
+app.listen(PORT, () => {
+	console.log(`Product Uploader App listening on port ${PORT}!`);
 });

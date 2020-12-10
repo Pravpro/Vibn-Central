@@ -1,20 +1,18 @@
 const express 		= require("express"),
-	  router = express.Router(),
+	  router 		= express.Router(),
 	  cookie 		= require('cookie'),
 	  ShopifyToken 	= require('shopify-token'),
 	  axios 		= require('axios');
 
 
 // Important Variables for Authentication
-const apiKey = process.env.APP_API_KEY;
-const apiSecret = process.env.APP_API_SECRET;
+const { APP_API_KEY, APP_API_SECRET, FORWARDING_ADDRESS } = process.env;
 const scopes = 'write_products';
-const forwardingAddress = "https://1fd2517eefb2.ngrok.io";
 
 const shopifyToken = new ShopifyToken({
-  sharedSecret: apiSecret,
-  redirectUri: `${forwardingAddress}/shopify/callback`,
-  apiKey: apiKey
+  sharedSecret: APP_API_SECRET,
+  redirectUri: `${FORWARDING_ADDRESS}/shopify/callback`,
+  apiKey: APP_API_KEY
 });
 
 // =====================
@@ -24,13 +22,14 @@ const shopifyToken = new ShopifyToken({
 // Handle install request for app
 router.get('/', (req, res) => {
 	const shop = req.query.shop;
+	console.log(shop);
 	
 	// Request must be from a shop
 	if(!shop) { return res.status(400).send('Missing shop parameter. Please add ?shop=your-development-shop.myshopify.com to your request'); }
 
 	const state = shopifyToken.generateNonce(); // Basically to generate a random string that Shopify can echo so app can validate the req
 	
-	//following builds this url: `https://${shop}/admin/oauth/authorize?client_id=${apiKey}&scope=${scopes}&state=${state}&redirect_uri=${redirectUri}`;
+	//following builds this url: `https://${shop}/admin/oauth/authorize?client_id=${APP_API_KEY}&scope=${scopes}&state=${state}&redirect_uri=${redirectUri}`;
 	const installUri = shopifyToken.generateAuthUrl(shop, scopes, state);
 
 	res.cookie('state', state);
@@ -57,8 +56,8 @@ router.get('/callback', async (req, res) => {
     // Create request for access token
 	const accessTokenRequestUrl = 'https://' + shop + '/admin/oauth/access_token';
 	const accessTokenPayload = {
-	  client_id: apiKey,
-	  client_secret: apiSecret,
+	  client_id: APP_API_KEY,
+	  client_secret: APP_API_SECRET,
 	  code,
 	};
 
