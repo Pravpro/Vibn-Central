@@ -1,20 +1,31 @@
 // Load all packages
 const dotenv 		= require('dotenv').config(),
 	  express		= require('express'),
-	  app 			= express(),
+	  session		= require('express-session'),
 	  crypto 		= require('crypto'),
 	  querystring 	= require('querystring'),
 	  axios 		= require('axios'),
 	  path			= require('path');
 
-// Requiring Routes
-const authenticationRoutes 	= require(path.resolve('./', path.join('routes', 'authentication')));
-const { PORT = 3000 } = process.env;
+const app = express();
+const { 
+	PORT = 3000 
+} = process.env;
 
 app.set("view engine", "ejs");
 app.use(express.static(`${__dirname}/public`));
+app.use(session({
+	resave: false,
+	saveUninitialized: false,
+	secret: "Creating Products really fast is key!"
+	cookie: {
+		samesite: true, // To prevent CSRF
+		secure: true
+	}
+}))
 
-// Use all routes
+// Requiring Routes
+const authenticationRoutes 	= require(path.resolve('./', path.join('routes', 'authentication')));
 app.use('/shopify', authenticationRoutes);
 
 app.get('/', (req, res) => {
