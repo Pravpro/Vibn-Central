@@ -8,19 +8,18 @@ const dotenv 		= require('dotenv').config(),
 	  path			= require('path');
 
 const app = express();
-const { 
-	PORT = 3000 
-} = process.env;
+const { PORT = 3000, NODE_ENV = 'prod' } = process.env;
 
 app.set("view engine", "ejs");
 app.use(express.static(`${__dirname}/public`));
 app.use(session({
+	name: "sid",
+	secret: "Creating Products really fast is key!",
 	resave: false,
 	saveUninitialized: false,
-	secret: "Creating Products really fast is key!"
 	cookie: {
 		samesite: true, // To prevent CSRF
-		secure: true
+		secure: NODE_ENV === 'prod'
 	}
 }))
 
@@ -29,6 +28,7 @@ const authenticationRoutes 	= require(path.resolve('./', path.join('routes', 'au
 app.use('/shopify', authenticationRoutes);
 
 app.get('/', (req, res) => {
+	console.log(req.session);
 	res.render('index');
 });
 

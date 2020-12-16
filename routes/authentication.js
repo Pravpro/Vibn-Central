@@ -65,6 +65,10 @@ router.get('/callback', async (req, res) => {
 	axios.post(accessTokenRequestUrl, accessTokenPayload)
 	.then(async(accessTokenResponse) => {
 
+		//Succcessfully aqcuired accessToken!
+		req.session.shop = shop;
+		console.log(req.session);
+
 	  	const accessToken = accessTokenResponse.data.access_token;
 	   	const shopRequestUrl = 'https://' + shop + '/admin/api/2020-10/shop.json';
 		const shopRequestHeaders = {
