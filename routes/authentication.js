@@ -2,7 +2,10 @@ const express 		= require("express"),
 	  router 		= express.Router(),
 	  cookie 		= require('cookie'),
 	  ShopifyToken 	= require('shopify-token'),
-	  axios 		= require('axios');
+	  axios 		= require('axios'),
+	  Account 		= require("../models/account");
+	  
+const { encrypt, decrypt } = require('../helpers/crypto');
 
 
 // Important Variables for Authentication
@@ -69,19 +72,32 @@ router.get('/callback', async (req, res) => {
 		req.session.shop = shop;
 		console.log(req.session);
 
-	  	const accessToken = accessTokenResponse.data.access_token;
-	   	const shopRequestUrl = 'https://' + shop + '/admin/api/2020-10/shop.json';
-		const shopRequestHeaders = {
-			'X-Shopify-Access-Token': accessToken
-		};
+		console.log(`Access Token: ${accessTokenResponse.data.access_token}`);
+		const hash = encrypt(accessTokenResponse.data.access_token);
+		console.log(`Hash: ${hash}`);
 
-		axios.get(shopRequestUrl, { headers: shopRequestHeaders })
-		.then((shopResponse) => {
-			res.end(JSON.stringify(shopResponse.data));
-		})
-		.catch((err) => {
-			res.send(err);
+		// Create new campground and save to DB
+		Account.create({shop: shop, accessToken: hash}, (err, account) => { 
+			if(err) console.log(err)
+			else {
+				console.log(account);
+				res.redirect("/");
+			}
 		});
+
+		// const accessToken = accessTokenResponse.data.access_token;
+		// const shopRequestUrl = 'https://' + shop + '/admin/api/2020-10/shop.json';
+		// const shopRequestHeaders = {
+		// 	'X-Shopify-Access-Token': accessToken
+		// };
+
+		// axios.get(shopRequestUrl, { headers: shopRequestHeaders })
+		// .then((shopResponse) => {
+		// 	res.end(JSON.stringify(shopResponse.data));
+		// })
+		// .catch((err) => {
+		// 	res.send(err);
+		// });
 
 
 	})

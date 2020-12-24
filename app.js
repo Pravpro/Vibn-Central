@@ -5,11 +5,21 @@ const dotenv 		= require('dotenv').config(),
 	  crypto 		= require('crypto'),
 	  querystring 	= require('querystring'),
 	  axios 		= require('axios'),
-	  path			= require('path');
+	  path			= require('path'),
+	  mongoose		= require('mongoose');
 
 const app = express();
-const { PORT = 3000, NODE_ENV = 'prod' } = process.env;
+const { PORT = 3000, NODE_ENV = 'prod', DB_USER, DB_PASSWORD, DB_NAME } = process.env;
 
+// Connect to DB
+mongoose.connect(`mongodb+srv://${DB_USER}:${DB_PASSWORD}@cluster0.ymgd0.mongodb.net/${DB_NAME}?retryWrites=true&w=majority`, {
+	useNewUrlParser: true, 
+	useUnifiedTopology: true 
+})
+.then(() => console.log("Connected to DB!"))
+.catch(err => console.log(err));
+
+// Set up App
 app.set("view engine", "ejs");
 app.use(express.static(`${__dirname}/public`));
 app.use(session({
@@ -21,7 +31,7 @@ app.use(session({
 		samesite: true, // To prevent CSRF
 		secure: NODE_ENV === 'prod'
 	}
-}))
+}));
 
 // Requiring Routes
 const authenticationRoutes 	= require(path.resolve('./', path.join('routes', 'authentication')));
