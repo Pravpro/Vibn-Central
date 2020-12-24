@@ -64,46 +64,27 @@ router.get('/callback', async (req, res) => {
 	  code,
 	};
 
-	// Send request for access token
-	axios.post(accessTokenRequestUrl, accessTokenPayload)
-	.then(async(accessTokenResponse) => {
-
-		//Succcessfully aqcuired accessToken!
-		req.session.shop = shop;
-		console.log(req.session);
-
-		console.log(`Access Token: ${accessTokenResponse.data.access_token}`);
+	// Get Access Token and store safely
+	try {
+		// Send request for access token
+		const accessTokenResponse = await axios.post(accessTokenRequestUrl, accessTokenPayload)
 		const hash = encrypt(accessTokenResponse.data.access_token);
-		console.log(`Hash: ${hash}`);
 
-		// Create new campground and save to DB
-		Account.create({shop: shop, accessToken: hash}, (err, account) => { 
-			if(err) console.log(err)
-			else {
-				console.log(account);
-				res.redirect("/");
-			}
-		});
-
-		// const accessToken = accessTokenResponse.data.access_token;
-		// const shopRequestUrl = 'https://' + shop + '/admin/api/2020-10/shop.json';
-		// const shopRequestHeaders = {
-		// 	'X-Shopify-Access-Token': accessToken
-		// };
-
-		// axios.get(shopRequestUrl, { headers: shopRequestHeaders })
-		// .then((shopResponse) => {
-		// 	res.end(JSON.stringify(shopResponse.data));
-		// })
-		// .catch((err) => {
-		// 	res.send(err);
-		// });
-
-
-	})
-	.catch((err) => {
+		let account = await Account.find({shop: shop});
+		account = account[0];
+		console.log(account);
+		if(!account) {
+			// Create new campground and save to DB
+			await Account.create({shop: shop, accessToken: hash});
+		}
+		
+		// Set shop in session
+		req.session.shop = shop;
+		res.redirect("/");
+	}
+	catch(err) {
 	  	res.send(`${err.name}: ${err.message}`);
-	});
+	};
 
 });
 
