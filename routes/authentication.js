@@ -66,15 +66,13 @@ router.get('/callback', async (req, res) => {
 
 	// Get Access Token and store safely
 	try {
-		// Send request for access token
-		const accessTokenResponse = await axios.post(accessTokenRequestUrl, accessTokenPayload)
-		const hash = encrypt(accessTokenResponse.data.access_token);
-
 		let account = await Account.find({shop: shop});
 		account = account[0];
-		console.log(account);
 		if(!account) {
-			// Create new campground and save to DB
+			// Send request for access token
+			const accessTokenResponse = await axios.post(accessTokenRequestUrl, accessTokenPayload)
+			const hash = encrypt(accessTokenResponse.data.access_token);
+			// Create new account and save to DB
 			await Account.create({shop: shop, accessToken: hash});
 		}
 		
