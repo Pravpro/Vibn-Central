@@ -46,7 +46,7 @@ app.use('/shopify', authenticationRoutes);
 
 app.get('/', (req, res) => {
 	console.log(req.session);
-	res.render('index');
+	res.render('index', {shop: req.session.shop});
 });
 
 // Show login page
