@@ -33,6 +33,13 @@ app.use(session({
 	}
 }));
 
+function isLoggedIn(req, res, next) {
+	if(req.session.shop) {
+		return next();
+	}
+	res.redirect('/login');
+}
+
 // Requiring Routes
 const authenticationRoutes 	= require(path.resolve('./', path.join('routes', 'authentication')));
 app.use('/shopify', authenticationRoutes);
@@ -47,15 +54,15 @@ app.get('/login', (req, res) => {
 	res.render('login');
 });
 
-app.get('/batch', (req, res) => {
+app.get('/batch', isLoggedIn, (req, res) => {
 	res.render('batch/index');
 });
 
-app.get('/batch/new', (req, res) => {
+app.get('/batch/new', isLoggedIn, (req, res) => {
 	res.render('batch/new');
 });
 
-app.post('/batch/product/new', (req, res) => {
+app.post('/batch/product/new', isLoggedIn, (req, res) => {
 	
 });
 
