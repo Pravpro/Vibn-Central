@@ -80,7 +80,7 @@ router.get('/callback', async (req, res) => {
 		
 		// Set shop in session
 		req.session.shop = shop;
-		res.redirect("/");
+		res.redirect("/batch");
 	}
 	catch(err) {
 	  	res.send(`${err.name}: ${err.message}`);

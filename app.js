@@ -45,7 +45,19 @@ app.get('/', (req, res) => {
 // Show login page
 app.get('/login', (req, res) => {
 	res.render('login');
-})
+});
+
+app.get('/batch', (req, res) => {
+	res.render('batch/index');
+});
+
+app.get('/batch/new', (req, res) => {
+	res.render('batch/new');
+});
+
+app.post('/batch/product/new', (req, res) => {
+	
+});
 
 app.listen(PORT, () => {
 	console.log(`Product Uploader App listening on port ${PORT}!`);
