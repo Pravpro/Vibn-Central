@@ -53,10 +53,14 @@ app.get('/', (req, res) => {
 app.get('/login', (req, res) => {
 	res.render('login');
 });
+app.get('/logout', (req, res) => {
+	delete req.session.shop;
+	res.redirect('/')
+})
 
-app.get('/batch', isLoggedIn, (req, res) => {
-	res.render('batch/index');
-});
+// app.get('/batch', isLoggedIn, (req, res) => {
+// 	res.render('batch/index');
+// });
 
 app.get('/batch/new', isLoggedIn, (req, res) => {
 	res.render('batch/new');

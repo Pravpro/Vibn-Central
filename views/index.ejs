@@ -4,7 +4,8 @@
 
 <% if(shop) { %>
 	<p class="mb-0">Welcome <%= shop %></p>
-	<a class="d-block" href="/batch">Craete a new Batch</a>
+	<a class="d-block" href="/batch/new">Craete a new Batch</a>
+	<a href="/logout">Logout</a>
 <% } else { %>
 	<a class="d-block" href="/login">Login with Shopify</a>
 <% } %>
