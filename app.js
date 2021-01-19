@@ -56,38 +56,12 @@ app.get('/logout', (req, res) => {
 	res.redirect('/')
 })
 
-// app.get('/batch', isLoggedIn, (req, res) => {
-// 	res.render('batch/index');
-// });
-
 app.get('/batch/new', isLoggedIn, (req, res) => {
 	res.render('batch/new', {shop: req.session.shop});
 });
 
-app.get('/queryTest', isLoggedIn, async (req, res) => {
-	try {
-		let data = {
-			query: `
-				query {
-				  product(id: "gid://shopify/Product/5890569306269") {
-				    id
-				    title
-				    descriptionHtml
-				  }
-				}
-			`
-		}
-		let response = await makeApiCall(req.session.shop, data);
-		console.log(response.data);
-		
-	} catch(err) {
-		console.log(err);
-	}
-})
-
 app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 	console.log(req.body.title);
-	res.send("Success");
 	try {
 		let data = {
 			query: `
@@ -101,7 +75,8 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 			`
 		}
 		let response = await makeApiCall(req.session.shop, data);
-		console.log(response.data);
+		console.log(response.data.data);
+		res.send("Success");
 	} catch(e) {
 		console.log(e);
 	}

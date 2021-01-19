@@ -2,18 +2,19 @@ const productHtml = $('.product')[0].outerHTML;
 
 $('#new').click(() => {
 	$('#products-section').append(productHtml);
+	initTinymce();
 });
 
 $('#submit').click(async (e) => {
 	let products = $('.product');
-
+	$('#submit')[0].disabled = true;
 	await Promise.allSettled(products.map(async (i, product) => {
 		let data = {
 			title : $(product).find("input[name='title']").val()
 		}
 		console.log(data);
-		axios.post('/batch/product/new', data)
-		.then( res => { console.log(res.data); })
-		.catch( err => { console.log(err); });
+		let res = await axios.post('/batch/product/new', data);
+		console.log(res.data);
 	}));
+	$('#submit')[0].disabled = false;
 })
