@@ -5,12 +5,17 @@
 <p>For shop: <span id="shop"><%= shop %></span></p>
 
 <div id="products-section">
-	<div class="product border border-secondary">
-		<label>Title: </label>
-		<input type="text" name="title">
-		<textarea class="tinymce">Next, use our Get Started docs to setup Tiny!</textarea>
-		<label>Images: </label>
-		<input type="file" name="images" accept="image/jpeg, image/png, image/gif" multiple>
+	<div class="product border border-secondary rounded p-3">
+		<div class="mb-2">
+			<label>Title</label>
+			<input class="form-control form-control-sm" type="text" name="title">
+		</div>
+		<div class="mb-2">
+			<label>Description</label>
+			<textarea class="tinymce">Next, use our Get Started docs to setup Tiny!</textarea>
+		</div>
+		<label>Images</label>
+		<input class="form-control form-control-sm" type="file" name="images" accept="image/jpeg, image/png, image/gif" multiple>
 	</div>
 </div>
 

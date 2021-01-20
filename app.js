@@ -56,7 +56,7 @@ app.get('/logout', (req, res) => {
 	res.redirect('/')
 })
 
-app.get('/batch/new', isLoggedIn, (req, res) => {
+app.get('/batch/new'/*, isLoggedIn*/, (req, res) => {
 	res.render('batch/new', {shop: req.session.shop});
 });
 
