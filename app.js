@@ -56,7 +56,7 @@ app.get('/logout', (req, res) => {
 	res.redirect('/')
 })
 
-app.get('/batch/new'/*, isLoggedIn*/, (req, res) => {
+app.get('/batch/new', isLoggedIn, (req, res) => {
 	res.render('batch/new', {shop: req.session.shop});
 });
 
@@ -66,7 +66,7 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 		let data = {
 			query: `
 				mutation {
-				  productCreate(input: { title: "${req.body.title}" }){
+				  productCreate(input: { title: "${req.body.title}", descriptionHtml: "${req.body.description}" }){
 				    product {
 				      id
 				    }
@@ -75,7 +75,7 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 			`
 		}
 		let response = await makeApiCall(req.session.shop, data);
-		console.log(response.data.data);
+		(response.data.data) ? console.log(response.data.data) : console.log(response.data);
 		res.send("Success");
 	} catch(e) {
 		console.log(e);

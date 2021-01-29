@@ -10,11 +10,12 @@ $('#submit').click(async (e) => {
 	$('#submit')[0].disabled = true;
 	await Promise.allSettled(products.map(async (i, product) => {
 		let data = {
-			title : $(product).find("input[name='title']").val()
+			title : $(product).find("input[name='title']").val(),
+			description: tinymce.get(i).getContent().replace(/"/g, '\\"')
 		}
 		console.log(data);
 		let res = await axios.post('/batch/product/new', data);
 		console.log(res.data);
 	}));
 	$('#submit')[0].disabled = false;
-})
+});
