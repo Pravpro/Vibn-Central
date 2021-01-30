@@ -4,6 +4,13 @@
 
 <p>For shop: <span id="shop"><%= shop %></span></p>
 
+<div id="quantity">
+<% locations.edges.forEach( location => { %>
+	<label><%= location.node.name %></label>
+	<input type="number" name="<%=location.node.id%>">
+<% }); %>
+</div>
+
 <div id="products-section">
 	<div class="product border border-secondary rounded p-3 mb-2">
 		<div class="mb-2">

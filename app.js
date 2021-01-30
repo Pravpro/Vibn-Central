@@ -56,8 +56,28 @@ app.get('/logout', (req, res) => {
 	res.redirect('/')
 })
 
-app.get('/batch/new', isLoggedIn, (req, res) => {
-	res.render('batch/new', {shop: req.session.shop});
+app.get('/batch/new', isLoggedIn, async (req, res) => {
+	try {
+		let data = {
+			query: `
+				query {
+				  locations (first: 20) { 
+				    edges {
+				      node {
+				        id
+				        name
+				      }
+				    } 
+				  } 
+				}
+			`
+		}
+		let response = await makeApiCall(req.session.shop, data);
+		res.render('batch/new', {shop: req.session.shop, locations: response.data.data.locations});
+	
+	} catch(e) {
+		console.log(e);
+	}
 });
 
 app.post('/batch/product/new', isLoggedIn, async (req, res) => {
