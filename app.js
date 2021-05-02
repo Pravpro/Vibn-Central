@@ -27,6 +27,7 @@ app.set("view engine", "ejs");
 app.use(express.static(`${__dirname}/public`));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+// Session Management
 app.use(session({
 	name: "sid",
 	secret: "Creating Products really fast is key!",
@@ -58,6 +59,7 @@ app.get('/logout', (req, res) => {
 
 app.get('/batch/new', isLoggedIn, async (req, res) => {
 	try {
+		// Get locations
 		let data = {
 			query: `
 				query {
@@ -73,6 +75,8 @@ app.get('/batch/new', isLoggedIn, async (req, res) => {
 			`
 		}
 		let response = await makeApiCall(req.session.shop, data);
+		
+		// Render new batch page
 		res.render('batch/new', {shop: req.session.shop, locations: response.data.data.locations});
 	
 	} catch(e) {
@@ -83,19 +87,64 @@ app.get('/batch/new', isLoggedIn, async (req, res) => {
 app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 	console.log(req.body.title);
 	try {
+		/* Create Product
+		 *	Input: title, description
+		 *	Output: id
+		 */
 		let data = {
 			query: `
 				mutation {
-				  productCreate(input: { title: "${req.body.title}", descriptionHtml: "${req.body.description}" }){
+				  productCreate(
+				  	input: { 
+				  	  title: "${req.body.title}", 
+				  	  descriptionHtml: "${req.body.description}" 
+				  	}
+				  )
+				  {
 				    product {
 				      id
+				    }
+				    userErrors {
+				      field
+				      message
 				    }
 				  }
 				}
 			`
 		}
 		let response = await makeApiCall(req.session.shop, data);
-		(response.data.data) ? console.log(response.data.data) : console.log(response.data);
+		console.log(response.data.data);
+		
+		/* Set additional parameters on the product
+		 *	Input: Inventory (prod id, location id, quantity)
+		 */
+		let id = response.data.data.productCreate.product.id;
+		// Set 
+		let quantityRes = await Promise.all( Object.keys(req.body.quantity).map( async location => {
+			data = {
+				query: `
+					mutation {
+					  inventoryActivate(
+					  	inventoryItemId: "${id}", 
+					  	locationId: "${location}", 
+					  	available: ${req.body.quantity[location]}
+					  ) 
+					  {
+					  	inventoryLevel{
+					  	  available
+					  	}
+					  	userErrors {
+					      field
+					      message
+					    }
+					  }
+					}
+				`
+			}
+			let qtyRes = await makeApiCall(req.session.shop, data);
+			console.log(qtyRes.data);
+			return qtyRes.data;
+		}));
 		res.send("Success");
 	} catch(e) {
 		console.log(e);
