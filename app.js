@@ -17,7 +17,7 @@ const { fstat } = require('fs');
 const { encrypt, decrypt } = require('./helpers/crypto');
 const { PORT = 3000, NODE_ENV = 'prod', DB_USER, DB_PASSWORD, DB_NAME } = process.env;
 const fileUploadFolder = 'tmp_image_uploads';
-const fileUploadDir = `${__dirname}/public/${fileUploadFolder}`;
+const fileUploadDirPath = `${__dirname}/public/${fileUploadFolder}`;
 
 // Connect to DB
 mongoose.connect(`mongodb+srv://${DB_USER}:${DB_PASSWORD}@cluster0.ymgd0.mongodb.net/${DB_NAME}?retryWrites=true&w=majority`, {
@@ -33,7 +33,7 @@ app.use(express.static(`${__dirname}/public`));
 // app.use(bodyParser.urlencoded({ extended: false }));
 // app.use(bodyParser.json());
 app.use(formidableMiddleware({
-	uploadDir: fileUploadDir,
+	uploadDir: fileUploadDirPath,
 	keepExtensions: true,
 	// maxFileSize: 20 * 1024 * 1024, // 20mb
 	multiples: true
@@ -105,14 +105,15 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 		 *	Input: title, description, images
 		 *	Output: id
 		 */
-		console.log(req.fields);
-		console.log(req.files);
+		// console.log(req.fields);
+		// console.log(req.files);
 		
-		// Rename the files to original names
+		// Rename the files to original names and modify path to reflect this
 		if(!Array.isArray(req.files.images)) req.files.images = [req.files.images];
 		await Promise.all(req.files.images.map( async image => {
-			await fs.rename(image.path, `${fileUploadDir}/${image.name}`, async () => {
-				console.log("Renamed file");
+			let newPath = `${fileUploadDirPath}/${image.name}`
+			await fs.rename(image.path, newPath, async () => {
+				image.path = newPath;
 			});
 		}));
 		
@@ -154,18 +155,24 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 		}
 		let response = await makeApiCall(req.session.shop, data);
 		console.log(JSON.stringify(response.data.data));
-		// Delete Images from server
-		// await Promise.all(req.files.images.map( async image => {
-		// 	await fs.unlink(`${fileUploadDir}/${image.name}`, err => {
-		// 		if(err){
-		// 			console.log(err);
-		// 			return
-		// 		}
-		// 	});
-		// }));
+		// let id = response.data.data.productCreate.product.id;
+		
 		// TODO: Do proper error handling
 		if(response.data.data.productCreate.userErrors.length > 0) console.log(response.data.data.productCreate.userErrors.message);
 		
+
+		// Delete Images from server after wait time (= 3 second per image)
+		setTimeout(() => {
+			for(let i = 0; i < req.files.images.length; i++) {
+				fs.unlink(req.files.images[i].path, err => {
+					if(err){
+						console.log(err);
+						return
+					}
+				});
+			}
+		}, req.files.images.length*3000);
+
 		/* Set additional parameters on the product
 		 *	Input: Inventory (prod id, location id, quantity)
 		 */
