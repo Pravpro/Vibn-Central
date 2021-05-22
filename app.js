@@ -161,7 +161,7 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 		if(response.data.data.productCreate.userErrors.length > 0) console.log(response.data.data.productCreate.userErrors.message);
 		
 
-		// Delete Images from server after wait time (= 3 second per image)
+		// Delete Images from server after wait time (= 5 second per image)
 		setTimeout(() => {
 			for(let i = 0; i < req.files.images.length; i++) {
 				fs.unlink(req.files.images[i].path, err => {
@@ -171,7 +171,7 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 					}
 				});
 			}
-		}, req.files.images.length*3000);
+		}, req.files.images.length*5000);
 
 		/* Set additional parameters on the product
 		 *	Input: Inventory (prod id, location id, quantity)
