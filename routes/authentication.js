@@ -10,7 +10,7 @@ const { encrypt, decrypt } = require('../helpers/crypto');
 
 // Important Variables for Authentication
 const { APP_API_KEY, APP_API_SECRET, FORWARDING_ADDRESS } = process.env;
-const scopes = 'write_products';
+const scopes = ['write_products','write_inventory'];
 
 const shopifyToken = new ShopifyToken({
   sharedSecret: APP_API_SECRET,
@@ -19,7 +19,7 @@ const shopifyToken = new ShopifyToken({
 });
 
 // =====================
-// CAMPGROUND ROUTES
+// Authentication ROUTES
 // =====================
 
 // Handle install request for app
