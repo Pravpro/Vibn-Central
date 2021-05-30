@@ -6,14 +6,12 @@ const dotenv 				= require('dotenv').config(),
 	  crypto 				= require('crypto'),
 	  querystring 			= require('querystring'),
 	  axios 				= require('axios'),
-	//   bodyParser 			= require('body-parser'),
 	  path					= require('path'),
 	  mongoose				= require('mongoose'),
 	  Account 				= require("./models/account");
 	  formidableMiddleware 	= require('express-formidable');
 
 const app = express();
-const { fstat } = require('fs');
 const { encrypt, decrypt } = require('./helpers/crypto');
 const { PORT = 3000, NODE_ENV = 'prod', DB_USER, DB_PASSWORD, DB_NAME } = process.env;
 const fileUploadFolder = 'tmp_image_uploads';
@@ -30,12 +28,9 @@ mongoose.connect(`mongodb+srv://${DB_USER}:${DB_PASSWORD}@cluster0.ymgd0.mongodb
 // Set up App
 app.set("view engine", "ejs");
 app.use(express.static(`${__dirname}/public`));
-// app.use(bodyParser.urlencoded({ extended: false }));
-// app.use(bodyParser.json());
 app.use(formidableMiddleware({
 	uploadDir: fileUploadDirPath,
 	keepExtensions: true,
-	// maxFileSize: 20 * 1024 * 1024, // 20mb
 	multiples: true
 }));
 // Session Management
@@ -101,12 +96,6 @@ app.get('/batch/new', isLoggedIn, async (req, res) => {
 app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 	try {
 		let baseImageURL = `https://${req.headers.host}/${fileUploadFolder}`;
-		/* Create Product
-		 *	Input: title, description, images
-		 *	Output: id
-		 */
-		// console.log(req.fields);
-		// console.log(req.files);
 		
 		// Rename the files to original names and modify path to reflect this
 		if(!Array.isArray(req.files.images)) req.files.images = [req.files.images];
@@ -130,7 +119,10 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 		imageList += ']';
 		console.log(`[CreateMediaInput]: ${imageList}`);
 
-
+		/* Create Product
+		 *	Input: title, description, images
+		 *	Output: id
+		 */
 		let data = {
 			query: `
 				mutation {
@@ -161,7 +153,8 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 		if(response.data.data.productCreate.userErrors.length > 0) console.log(response.data.data.productCreate.userErrors.message);
 		
 
-		// Delete Images from server after wait time (= 5 second per image)
+		// Delete Images from server after wait time (= 10 seconds * # of images = total wait time)
+		// TODO: Figure out if there is a better method for when to delete files 
 		setTimeout(() => {
 			for(let i = 0; i < req.files.images.length; i++) {
 				fs.unlink(req.files.images[i].path, err => {
@@ -171,13 +164,13 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 					}
 				});
 			}
-		}, req.files.images.length*5000);
+		}, req.files.images.length*10000);
 
 		/* Set additional parameters on the product
 		 *	Input: Inventory (prod id, location id, quantity)
 		 */
 		// let id = response.data.data.productCreate.product.id;
-		// Set Inventory (TODO)
+		// TODO: Set Inventory
 		// let quantityRes = await Promise.all( Object.keys(req.fields.quantity).map( async location => {
 		// 	data = {
 		// 		query: `

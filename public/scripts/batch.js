@@ -14,7 +14,6 @@ $('#submit').click(async (e) => {
 	$('#submit')[0].disabled = true;
 	
 	// Submit all products (1 at a time) with their input information
-	// await Promise.allSettled(products.map(async (i, product) => {
 	for(let i = 0; i < products.length; i++){
 		
 		// Capture data to send for product
@@ -35,12 +34,8 @@ $('#submit').click(async (e) => {
 				'Content-Type': 'multipart/form-data'
 			}
 		});
-		// for (let j = 0; j < images.length; j++) {
-		// 	URL.revokeObjectURL(imageURLs[j]);
-		// }
 		console.log(res.data);
 	}
-	// }));
 	$('#submit')[0].disabled = false;
 });
 	
