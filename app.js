@@ -8,8 +8,9 @@ const dotenv 				= require('dotenv').config(),
       axios 				= require('axios'),
       path					= require('path'),
       mongoose				= require('mongoose'),
-      Account 				= require("./models/account");
-      formidableMiddleware 	= require('express-formidable');
+      Account 				= require("./models/account"),
+      formidableMiddleware 	= require('express-formidable'),
+      createCsvWriter       = require('csv-writer').createArrayCsvWriter;
 
 const app = express();
 const { encrypt, decrypt } = require('./helpers/crypto');
@@ -60,8 +61,8 @@ app.get('/login', (req, res) => {
 });
 app.get('/logout', (req, res) => {
     delete req.session.shop;
-    res.redirect('/')
-})
+    res.redirect('/');
+});
 
 // Get route for batch upload Form
 app.get('/batch/new', isLoggedIn, async (req, res) => {
@@ -204,8 +205,8 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 
 app.get('/orders', isLoggedIn, (req, res) => {
     res.render('orders');
-})
-
+});
+         
 app.post('/orders', isLoggedIn, async (req, res) => {
     console.log(req.fields);
     data = {
@@ -226,6 +227,16 @@ app.post('/orders', isLoggedIn, async (req, res) => {
                       country
                       zip
                     }
+                    totalPriceSet{
+                      presentmentMoney{
+                        amount
+                        currencyCode
+                      }
+                      shopMoney{
+                        amount
+                        currencyCode
+                      }
+                    }
                   }
                 }
               }
@@ -233,9 +244,65 @@ app.post('/orders', isLoggedIn, async (req, res) => {
         `
     }
     let response = await makeApiCall(req.session.shop, data);
-    console.log(response.data.data.orders.edges);
-    res.send("Success");
-})
+    console.log(JSON.stringify(response.data));
+    let ordersData = response.data.data.orders.edges;
+
+    // Create the CSV
+    const csvWriter = createCsvWriter({
+        header: ['Date', 'Customer', 'Address'],
+        path: `order-exports/${req.session.shop}.csv`
+    });
+
+    let records = [];
+    for(let i = 0; i < ordersData.length; i++){
+        let record = [];
+        let order = ordersData[i].node;
+        // Date field
+        record.push(order.createdAt ? order.createdAt : '');
+
+        if(order.shippingAddress){
+            // Customer Field
+            customerName = '';
+            if(order.shippingAddress.firstName) customerName += order.shippingAddress.firstName;
+            if(order.shippingAddress.lastName) customerName += ` ${order.shippingAddress.lastName}`;
+            record.push(customerName);
+            // Address Field
+            address = '';
+            if(order.shippingAddress.address1) address += `${order.shippingAddress.address1}`;
+            if(order.shippingAddress.address2) address += `\n${order.shippingAddress.address2}`;
+            if(order.shippingAddress.city) address += `\n${order.shippingAddress.city}`;
+            if(order.shippingAddress.country) address += `\n${order.shippingAddress.country}`;
+            record.push(address);
+        }
+
+        records.push(record);
+    }
+
+    csvWriter.writeRecords(records)       // returns a promise
+    .then(() => {
+        console.log('...Done');
+        switch (req.accepts(['html', 'json'])) { //possible response types, in order of preference
+            case 'html':
+                res.redirect("/orders/export");
+                break;
+            case 'json':
+                res.send({redirect: "/orders/export"});
+                break;
+        }
+    })
+    .catch(e => {
+        console.log(e);
+        res.status(500).send("Failed to write to CSV.")
+    } )
+
+});
+
+app.get('/orders/export', isLoggedIn, (req, res) => {
+    // Get the CSV file for that shop
+    res.download(path.join(__dirname, `order-exports/${req.session.shop}.csv`));
+
+    // Maybe delete file after
+});
 
 // TODO: Move these functions out to a helper file.
 // ================================== HELPER FUNCTIONS ==================================
@@ -244,9 +311,21 @@ function isLoggedIn(req, res, next) {
     if(req.session.shop) {
         return next();
     }
-    res.redirect('/login');
+    switch (req.accepts(['html', 'json'])) { //possible response types, in order of preference
+        case 'html':
+            res.redirect("/login");
+            break;
+        case 'json':
+            res.send({redirect: "/login"});
+            break;
+        default:
+            // if the application requested something we can't support
+            res.status(400).send('Bad Request');
+            return;
+    }
 }
 
+// Make API call with given data and return the response
 async function makeApiCall(shop, data) {
     try {
         // Get AccessToken for shop

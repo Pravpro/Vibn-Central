@@ -8,8 +8,8 @@ let showToast = () => {
 }
 let getOrders = async() => {
     // Post to endpoint that will handle Shopify API call
-    let res = await axios.post('/orders', {'start': startDate, 'end': endDate});
-    console.log(res.data);
+    let res = await axios.post('/orders', {'start': startDate, 'end': endDate}, { headers: {"Accept": "application/json"} });
+    res.data.redirect ? window.location.href = res.data.redirect : console.log(res.data);
 }
 
 // Run functions on document ready
