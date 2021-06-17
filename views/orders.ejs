@@ -1,0 +1,34 @@
+<%- include('partials/header'); %>
+<div class="container">
+    <h1 class="display-4 text-center mb-4 mt-2">Orders Export</h1>
+    <h3 class="text-center">Select a date range to export orders for.</h2>
+    <p class=" lead text-center">Clicking the 'Export' button will download a CSV of the orders for the selected date range.</p>
+    <div class="row justify-content-center align-items-end">
+        <div class="col-4">
+            <label class="form-label" for="daterange">Date Range Picker</label>
+            <input class="form-control" type="text" id="daterange" name="daterange" value="" />
+        </div>
+        <div class="col-auto">
+            <button id="export-btn" class="btn btn-primary">Export</button>
+        </div>
+    </div>
+    <div class="position-absolute top-0 end-0 p-3">
+        <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                <strong class="me-auto">Invalid Date Range</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                Please select a date range for export.
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/scripts') %>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<script type="text/javascript" src="/scripts/orders.js"></script>
+
+<%- include('partials/footer'); %>
