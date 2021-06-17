@@ -1,10 +1,14 @@
 {
   "name": "Shopify-Product-Uploader-App",
   "version": "1.0.0",
-  "description": "",
+  "description": "A web app designed to allow faster product uploads of one-off Product Shopify Stores",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js"
+  },
+  "bugs": {
+    "url": "https://github.com/Pravpro/Shopify-Product-Uploader/issues"
   },
   "keywords": [],
   "author": "Pravir Adlakha",
