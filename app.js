@@ -17,6 +17,15 @@ const { encrypt, decrypt } = require('./helpers/crypto');
 const { PORT = 3000, NODE_ENV = 'prod', DB_USER, DB_PASSWORD, DB_NAME } = process.env;
 const fileUploadFolder = 'tmp_image_uploads';
 const fileUploadDirPath = `${__dirname}/public/${fileUploadFolder}`;
+const currencySymbols = {
+    CAD : '$',
+    USD : '$'
+}
+const paymentMethods = {
+    shopify_payments : 'CC',
+    sezzle : 'Sezzle',
+    paypal : 'PayPal'
+}
 
 // Connect to DB
 mongoose.connect(`mongodb+srv://${DB_USER}:${DB_PASSWORD}@cluster0.ymgd0.mongodb.net/${DB_NAME}?retryWrites=true&w=majority`, {
@@ -208,76 +217,58 @@ app.get('/orders', isLoggedIn, (req, res) => {
 });
          
 app.post('/orders', isLoggedIn, async (req, res) => {
-    console.log(req.fields);
-    data = {
-        query: `
-            query {
-              orders(first: 10, query:"created_at:>=${req.fields.start} created_at:<=${req.fields.end}") {
-                edges {
-                  node {
-                    id
-                    createdAt
-                    shippingAddress {
-                      id
-                      firstName
-                      lastName
-                      address1
-                      address2
-                      city
-                      country
-                      zip
-                    }
-                    totalPriceSet{
-                      presentmentMoney{
-                        amount
-                        currencyCode
-                      }
-                      shopMoney{
-                        amount
-                        currencyCode
-                      }
-                    }
-                  }
-                }
-              }
-            }
-        `
-    }
-    let response = await makeApiCall(req.session.shop, data);
-    console.log(JSON.stringify(response.data));
+    console.log(req.fields.timeZone);
+    // Define after for pagination purposes
+    let response = await getOrders(req.session.shop, req.fields.start, req.fields.end, null);
     let ordersData = response.data.data.orders.edges;
 
     // Create the CSV
     const csvWriter = createCsvWriter({
-        header: ['Date', 'Customer', 'Address'],
+        header: ['Date', 'Product Name', 'Customer', 'Address', 'Payment Method', 'Sale Price'],
         path: `order-exports/${req.session.shop}.csv`
     });
 
     let records = [];
     for(let i = 0; i < ordersData.length; i++){
-        let record = [];
         let order = ordersData[i].node;
+        // Field Vars
+        let dateString = '',
+            customerName = '',
+            address = '',
+            paymentMethod = '',
+            salePrice = '',
+            salesTax = '';
+        
         // Date field
-        record.push(order.createdAt ? order.createdAt : '');
+        if(order.createdAt) {
+            dateString = new Date(order.createdAt).toLocaleDateString("en-US", {timeZone: req.fields.timeZone});   
+        }
 
         if(order.shippingAddress){
             // Customer Field
-            customerName = '';
             if(order.shippingAddress.firstName) customerName += order.shippingAddress.firstName;
             if(order.shippingAddress.lastName) customerName += ` ${order.shippingAddress.lastName}`;
-            record.push(customerName);
             // Address Field
-            address = '';
             if(order.shippingAddress.address1) address += `${order.shippingAddress.address1}`;
             if(order.shippingAddress.address2) address += `\n${order.shippingAddress.address2}`;
-            if(order.shippingAddress.city) address += `\n${order.shippingAddress.city}`;
+            if(order.shippingAddress.city) address += `\n${order.shippingAddress.city} ${order.shippingAddress.provinceCode} ${order.shippingAddress.zip}`;
             if(order.shippingAddress.country) address += `\n${order.shippingAddress.country}`;
-            record.push(address);
+        }
+        // Payment Method
+        if(order.paymentGatewayNames.length) paymentMethod += `${paymentMethods[order.paymentGatewayNames[0]] ? paymentMethods[order.paymentGatewayNames[0]] : order.paymentGatewayNames[0]}`
+
+        // Sale Price Field
+        if(order.totalPriceSet) salePrice = `${currencySymbols[order.totalPriceSet.shopMoney.currencyCode]}${order.totalPriceSet.shopMoney.amount - order.totalTaxSet.shopMoney.amount}`;
+        
+        // Create a record for each product in the order
+        for(let j = 0; j < order.lineItems.edges.length; j++){
+            let product = order.lineItems.edges[j].node;
+            // Create record and only put salePrice and tax on first item
+            records.push([dateString, product.name, customerName, address, (j ? '' : paymentMethod), (j ? '' : salePrice)]);
         }
 
-        records.push(record);
     }
-
+    
     csvWriter.writeRecords(records)       // returns a promise
     .then(() => {
         console.log('...Done');
@@ -293,7 +284,7 @@ app.post('/orders', isLoggedIn, async (req, res) => {
     .catch(e => {
         console.log(e);
         res.status(500).send("Failed to write to CSV.")
-    } )
+    } );
 
 });
 
@@ -306,7 +297,75 @@ app.get('/orders/export', isLoggedIn, (req, res) => {
 
 // TODO: Move these functions out to a helper file.
 // ================================== HELPER FUNCTIONS ==================================
-// TODO: Make this function recognize type of request
+
+// Recursively receive all the orders
+async function getOrders(shop, startTime, endTime, after){
+    console.log("Iterate");
+    data = {
+        query: `
+            query {
+              orders(first: 10, ${after ? `after:"${after}", `: ''}query:"created_at:>=${startTime} created_at:<=${endTime}") {
+                edges {
+                  node {
+                    createdAt
+                    lineItems(first:50) {
+                      edges {
+                        node {
+                          name
+                        }
+                      }
+                    }
+                    shippingAddress {
+                      firstName
+                      lastName
+                      address1
+                      address2
+                      city
+                      provinceCode
+                      zip
+                      country
+                    }
+                    paymentGatewayNames
+                    totalPriceSet{
+                      shopMoney{
+                        amount
+                        currencyCode
+                      }
+                    }
+                    totalTaxSet{
+                      shopMoney{
+                        amount
+                      }
+                    }
+                  }
+                  cursor
+                }
+                pageInfo {
+                  hasNextPage
+                }
+              }
+            }
+        `
+    }
+    try{
+        let response = await makeApiCall(shop, data);
+        if(response.data.errors) console.log(response.data.errors);
+        if(response.data.data.orders.pageInfo.hasNextPage) {
+            // Recursive Case
+            let after = response.data.data.orders.edges[response.data.data.orders.edges.length-1].cursor;
+            let nextRes = await getOrders(shop, startTime, endTime, after);
+            nextRes.data.data.orders.edges.forEach((edge) => {
+                response.data.data.orders.edges.push(edge);
+            });
+        }
+        // Base Case
+        return response;
+    }
+    catch(e){ 
+        throw e;
+    }
+}
+
 function isLoggedIn(req, res, next) {
     if(req.session.shop) {
         return next();

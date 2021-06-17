@@ -1,4 +1,5 @@
 let startDate, endDate;
+let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 let showToast = () => {
     // Initialize toast
@@ -8,7 +9,7 @@ let showToast = () => {
 }
 let getOrders = async() => {
     // Post to endpoint that will handle Shopify API call
-    let res = await axios.post('/orders', {'start': startDate, 'end': endDate}, { headers: {"Accept": "application/json"} });
+    let res = await axios.post('/orders', {'start': startDate, 'end': endDate, 'timeZone': timeZone}, { headers: {"Accept": "application/json"} });
     res.data.redirect ? window.location.href = res.data.redirect : console.log(res.data);
 }
 
