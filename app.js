@@ -26,6 +26,7 @@ const paymentMethods = {
     sezzle : 'Sezzle',
     paypal : 'PayPal'
 }
+const ORDERS_EXPORT_DIR = './order-exports';
 
 // Connect to DB
 mongoose.connect(`mongodb+srv://${DB_USER}:${DB_PASSWORD}@cluster0.ymgd0.mongodb.net/${DB_NAME}?retryWrites=true&w=majority`, {
@@ -222,10 +223,12 @@ app.post('/orders', isLoggedIn, async (req, res) => {
     let response = await getOrders(req.session.shop, req.fields.start, req.fields.end, null);
     let ordersData = response.data.data.orders.edges;
 
-    // Create the CSV
+    if(!fs.existsSync(ORDERS_EXPORT_DIR)) fs.mkdirSync(ORDERS_EXPORT_DIR);
+
+    // Create the CSV writer
     const csvWriter = createCsvWriter({
         header: ['Date', 'Product Name', 'Customer', 'Address', 'Payment Method', 'Sale Price'],
-        path: `order-exports/${req.session.shop}.csv`
+        path: `${ORDERS_EXPORT_DIR}/${req.session.shop}.csv`
     });
 
     let records = [];
