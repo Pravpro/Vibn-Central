@@ -67,7 +67,7 @@ app.get('/', (req, res) => {
 
 // Show login page
 app.get('/login', (req, res) => {
-    res.render('login');
+    res.render('login', {shop: req.session.shop});
 });
 app.get('/logout', (req, res) => {
     delete req.session.shop;
@@ -214,7 +214,7 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 });
 
 app.get('/orders', isLoggedIn, (req, res) => {
-    res.render('orders');
+    res.render('orders', {shop: req.session.shop});
 });
          
 app.post('/orders', isLoggedIn, async (req, res) => {
