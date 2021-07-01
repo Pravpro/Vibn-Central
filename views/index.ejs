@@ -1,15 +1,33 @@
 <%- include('./partials/header'); %>
 
-<h1>Index Page</h1>
+<div class="container">
+    <h1 class="display-4 text-center mb-5 mt-4">Welcome to Vibn Central</h1>
+    
+    <% if(shop) { %>
+        <!-- <p class="mb-0">Welcome <%= shop %></p> -->
+        <!-- <div class="d-flex justify-content-center">
+            <a class="btn btn-primary mx-2" href="/batch/new">Craete a new Batch</a>
+            <a class="btn btn-primary mx-2" href="/orders">Create an Orders Export</a>
+            <a class="btn btn-default" href="/logout">Logout</a>
+        </div> -->
+        <div class="p-3 p-sm-5 bg-light rounded-3 border-bottom">
+            <div class="container-fluid py-5">
+                <h2 class="display-5 fw-bold">Navigation</h2>
+                <p class="fs-4">Check out the Navbar links for site navigation.</p>
+                <ul>
+                    <li>Upload - Create a new batch for uploading</li>
+                    <li>Orders - Download an Orders Export</li>
+                    <li><span class="text-warning">(Coming soon)</span> Product Description Generator</li>
+                </ul>
+                <a class="btn btn-dark">Logout <i class="bi bi-person-dash"></i></a>
+            </div>
+        </div>
+    <% } else { %>
+        <div class="d-flex justify-content-center">
+            <a class="btn btn-success" href="/login">Login with Shopify</a>
+        </div>
+    <% } %>
+</div>
 
-<% if(shop) { %>
-	<p class="mb-0">Welcome <%= shop %></p>
-	<a class="d-block" href="/batch/new">Craete a new Batch</a>
-	<a class="d-block" href="/orders">Create an Orders Export</a>
-	<a href="/logout">Logout</a>
-<% } else { %>
-	<a class="d-block" href="/login">Login with Shopify</a>
-<% } %>
-
-<%- include('./partials/scripts') %>
+<%- include('./partials/scripts'); %>
 <%- include('./partials/footer'); %>

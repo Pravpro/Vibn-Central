@@ -1,18 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-	<!-- Bootstrap CSS -->
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
     <!-- Bootstrap icons fonts -->
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css">
-	<!-- DatePicker CSS -->
-	<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
-	<!-- Custom CSS -->
-	<link rel="stylesheet" type="text/css" href="/stylesheets/main.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css">
+    <!-- DatePicker CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <!-- Custom CSS -->
+    <link rel="stylesheet" type="text/css" href="/stylesheets/main.css">
 
-	<title>Shopify Product Uploader App</title>
+    <title>Shopify Product Uploader App</title>
 </head>
 <body>
+
+    <!-- As a link -->
+    <nav class="navbar navbar-expand-md navbar-light bg-warning">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Vibn Central</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-between" id="navbarNavAltMarkup">
+                <div class="navbar-nav">
+                    <a class="nav-link active" aria-current="page" href="/">Home</a>
+                    <% if(shop) { %>
+                        <a class="nav-link" href="/batch/new">Upload</a>
+                        <a class="nav-link" href="/orders">Orders</a>
+                    <% } %>
+                </div>
+                <div class="navbar-nav">
+                    <% if(shop) { %>
+                        <a href="/logout" class="nav-link">Logout <i class="bi bi-person-dash"></i></a>
+                    <% } else { %>
+                        <!-- <a href="/login" class="nav-link">Login <i class="bi bi-person"></i></a> -->
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </nav>
