@@ -298,6 +298,10 @@ app.get('/orders/export', isLoggedIn, (req, res) => {
     // Maybe delete file after
 });
 
+app.get('/skugen', (req,res) => {
+    res.render('skugen', {shop: req.session.shop});
+});
+
 // TODO: Move these functions out to a helper file.
 // ================================== HELPER FUNCTIONS ==================================
 
@@ -392,6 +396,7 @@ async function makeApiCall(shop, data) {
     try {
         // Get AccessToken for shop
         const foundShop = await Account.find({ shop: shop });
+        console.log(foundShop);
         if (foundShop.length == 0 ) {throw "ERR: Can't find the shop in Accounts."}
 
         let config = {

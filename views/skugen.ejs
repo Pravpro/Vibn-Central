@@ -1,0 +1,94 @@
+<%- include('./partials/header'); %>
+
+<div class="container">
+    <h1 class="display-4 text-center mb-5 mt-4">SKU Gen</h1>
+    <p class="lead">Create a SKU format for the SKU number you want to create. Press the <i class="bi bi-plus-lg"></i> button to add parts to the SKU number to create desired format.</p>
+    
+    <div class="d-flex align-items-end justify-content-center">
+        <div id="sku-format" class="d-flex align-items-center">
+            <!-- <button class="btn">Type</button>
+            +
+            <button class="btn">Size</button> -->
+        </div>
+        <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addSkuModal">
+            <i class="bi bi-plus-lg"></i>
+        </button>
+        <div class="d-flex flex-column align-items-center">
+            <p class="mb-2">Sequence Number</p>
+            <p class="mb-2">4 chars</p>
+            <button class="btn text-primary">0001</button>
+        </div>
+        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addSkuModal">
+            <i class="bi bi-plus-lg"></i>
+        </button>
+    </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="addSkuModal" tabindex="-1" aria-labelledby="addSkuModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addSkuModalLabel">Create SKU Part</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="">
+                    <div class="mb-3">
+                        <label for="skuPartName" class="form-label">Name:</label>
+                        <input id="skuPartName" name="skuPartName" type="text" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="skuPartType">Type:</label>
+                        <select id="skuPartType" name="skuPartType" class="form-select" aria-label="Select Type of SKU Part">
+                            <option selected hidden>Select Type of SKU Part</option>
+                            <option value="tags">Tags</option>
+                            <option value="seqNum">Sequence Number</option>
+                        </select>
+                    </div>
+                    <div id="tagCombosSection" class="d-none">
+                        <div id="tagCombos">
+                            <div class="row fw-bold">
+                                <div class="col"><p class="text-center mb-2">Tag</p></div>
+                                <div class="col"><p class="text-center mb-2">Abbreviation</p></div>
+                            </div>
+                            <div class="row tagCombo mb-2">
+                                <div class="col">
+                                    <input class="form-control" type="text">
+                                </div>
+                                <div class="col">
+                                    <input class="form-control" type="text">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end mt-3">
+                            <button type="button" id="addTagCombo" class="btn btn-primary">Add Row</button>
+                        </div>
+                    </div>
+                    <div id="seqNumSection" class="d-none">
+                        <p class="mb-1">Define a starting number for the sequence.</p> 
+                        <p>Example "0001" means sequence number format is 4 digits and starts at 1.</p>
+                        <div class="row">
+                            <div class="col-4 d-flex justify-content-end">
+                                <label class="align-self-center" for="seqNum">Seq Num</label>
+                            </div>
+                            <div class="col-6">
+                                <input class="form-control" type="text" name="seqNum" id="seqNum" value="0001">
+                            </div>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('./partials/scripts'); %>
+<script type="text/javascript" src="/scripts/skugen.js"></script>
+<%- include('./partials/footer'); %>
