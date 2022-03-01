@@ -1,27 +1,27 @@
-<%- include('./partials/header'); %>
+<h2 class="text-center mb-5">Edit Sku</h2>
 
-<div class="container">
-    <h1 class="display-4 text-center mb-5 mt-4">SKU Gen</h1>
-    <p class="lead">Create a SKU format for the SKU number you want to create. Press the <i class="bi bi-plus-lg"></i> button to add parts to the SKU number to create desired format.</p>
-    
-    <div class="d-flex align-items-end justify-content-center">
-        <div id="sku-format" class="d-flex align-items-center">
-            <!-- <button class="btn">Type</button>
-            +
-            <button class="btn">Size</button> -->
-        </div>
-        <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addSkuModal">
+<p class="text-center lead">Create a SKU format for the SKU number you want to create. Press the <i class="bi bi-plus-lg"></i> button to add parts to the SKU number to create desired format.</p>
+
+<div class="d-flex align-items-end justify-content-center mt-4">    
+    <% let i = 0; %>
+    <% while(i < skuformat.length){ %>
+        <button id="sku-part-<%-i%>" class="btn btn-sm btn-success add-part-btn" data-bs-toggle="modal" data-bs-target="#addSkuModal">
             <i class="bi bi-plus-lg"></i>
         </button>
         <div class="d-flex flex-column align-items-center">
-            <p class="mb-2">Sequence Number</p>
-            <p class="mb-2">4 chars</p>
-            <button class="btn text-primary">0001</button>
+            <!-- <p class="mb-2"><%-skuformat[i].name%></p> -->
+            <p class="mb-2">Type: <%-skuformat[i].type%></p>
+            <button class="btn text-primary sku-part" data-bs-toggle="modal" data-bs-target="#addSkuModal">
+                <%-skuformat[i].name%>
+                <input type="hidden" value="<%-skuformat[i]._id%>">
+            </button>
         </div>
-        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addSkuModal">
-            <i class="bi bi-plus-lg"></i>
-        </button>
-    </div>
+        <% i++; %>
+    <% } %>
+    <button id="sku-part-<%-i%>" class="btn btn-sm btn-success add-part-btn" data-bs-toggle="modal" data-bs-target="#addSkuModal">
+        <i class="bi bi-plus-lg"></i>
+    </button>
+</div>
 
 </div>
 
@@ -29,12 +29,20 @@
 <div class="modal fade" id="addSkuModal" tabindex="-1" aria-labelledby="addSkuModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
+            <!-- Loading Spinner -->
+            <div class="spinner-wrapper d-flex justify-content-center align-items-center position-absolute w-100 h-100 top-0 start-0 d-none">
+                <div class="spinner-border text-warning" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+    
             <div class="modal-header">
-                <h5 class="modal-title" id="addSkuModalLabel">Create SKU Part</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="addSkuModalLabel">Create SKU Segment</h5>
+                <button type="button" class="btn-close close-modal-btn" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form action="">
+                <form id="sku-part-form" action="/skugen/sku/seg" method="POST">
+                    <input name="skuIndex" type="hidden" value="">
                     <div class="mb-3">
                         <label for="skuPartName" class="form-label">Name:</label>
                         <input id="skuPartName" name="skuPartName" type="text" class="form-control" required>
@@ -42,7 +50,7 @@
                     <div class="mb-3">
                         <label class="form-label" for="skuPartType">Type:</label>
                         <select id="skuPartType" name="skuPartType" class="form-select" aria-label="Select Type of SKU Part">
-                            <option selected hidden>Select Type of SKU Part</option>
+                            <option selected hidden>Select Type of SKU Segment</option>
                             <option value="tags">Tags</option>
                             <option value="seqNum">Sequence Number</option>
                         </select>
@@ -55,10 +63,10 @@
                             </div>
                             <div class="row tagCombo mb-2">
                                 <div class="col">
-                                    <input class="form-control" type="text">
+                                    <input name="key" class="form-control" type="text">
                                 </div>
                                 <div class="col">
-                                    <input class="form-control" type="text">
+                                    <input name="value" class="form-control" type="text">
                                 </div>
                             </div>
                         </div>
@@ -78,17 +86,16 @@
                             </div>
                         </div>
                     </div>
-
+    
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary">Save changes</button>
+                <form id="sku-part-del-form" action="/skugen/sku/seg" method="POST">
+                    <button id='del-seg-btn' type="submit" class="btn btn-danger d-none">Delete</button>
+                </form>
+                <button type="button" class="btn btn-secondary close-modal-btn" data-bs-dismiss="modal">Close</button>
+                <button id="submit-sku-part-form" type="button" class="btn btn-primary">Save changes</button>
             </div>
         </div>
     </div>
 </div>
-
-<%- include('./partials/scripts'); %>
-<script type="text/javascript" src="/scripts/skugen.js"></script>
-<%- include('./partials/footer'); %>

@@ -2,3 +2,12 @@
 	min-height: 100px;
 	width: 100%;
 }
+
+.toast-wrapper {
+	z-index: 1200;
+}
+
+.spinner-wrapper {
+	z-index: 10;
+	background-color: rgba(50,50,50,0.2);
+}

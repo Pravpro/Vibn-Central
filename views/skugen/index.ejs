@@ -1,0 +1,30 @@
+<%- include('../partials/header'); %>
+
+<!-- Toast (Will show toast on page render if errTitle and errMsg are provided) -->
+<div class="toast-wrapper position-absolute top-0 end-0 p-3">
+    <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+            <strong class="me-auto"><%if(locals.errTitle){%><%- errTitle %><%}%></strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            <%if(locals.errMsg){%><%- errMsg %><%}%>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <h1 class="display-4 text-center mb-5 mt-4">SKU Gen</h1>
+    
+    <% if(viewState == 'view') { %>
+        <%- include('./sku/view'); %>
+    <% } else if(viewState == 'edit') { %>
+        <%- include('./sku/edit'); %>
+    <% }%>
+
+</div>
+
+<%- include('../partials/scripts'); %>
+<script type="text/javascript" src="/scripts/skugen.js"></script>
+<%- include('../partials/footer'); %>
