@@ -35,6 +35,9 @@ $('body').on('click', '.sku-part', (ev) => prePopulateSkuForm($(ev.currentTarget
 // Handle hide modal Bootstrap event
 $('body').on('hide.bs.modal', '.modal', () => $('#addSkuModal').html(origModalHTML));
 
+// Handle Tag Combo delete
+$('body').on('click', '.delete-tag-combo', (ev) => $(ev.currentTarget).closest('.tagCombo').remove());
+
 
 // Pre Populate the sku segment form by using the unique mongoose object id  
 let prePopulateSkuForm = async(id) => {

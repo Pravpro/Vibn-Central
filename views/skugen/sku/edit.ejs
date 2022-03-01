@@ -27,7 +27,7 @@
 
 <!-- Modal -->
 <div class="modal fade" id="addSkuModal" tabindex="-1" aria-labelledby="addSkuModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
         <div class="modal-content">
             <!-- Loading Spinner -->
             <div class="spinner-wrapper d-flex justify-content-center align-items-center position-absolute w-100 h-100 top-0 start-0 d-none">
@@ -62,11 +62,16 @@
                                 <div class="col"><p class="text-center mb-2">Abbreviation</p></div>
                             </div>
                             <div class="row tagCombo mb-2">
-                                <div class="col">
+                                <div class="col-6">
                                     <input name="key" class="form-control" type="text">
                                 </div>
-                                <div class="col">
+                                <div class="col-5">
                                     <input name="value" class="form-control" type="text">
+                                </div>
+                                <div class="col-1">
+                                    <button type="button" class="btn btn-outline-danger delete-tag-combo">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
