@@ -2,11 +2,13 @@
 const dotenv 				= require('dotenv').config(),
       fs 					= require('fs'),
       express				= require('express'),
+      methodOverride        = require('method-override'),
       session				= require('express-session'),
       crypto 				= require('crypto'),
       querystring 			= require('querystring'),
       axios 				= require('axios'),
       path					= require('path'),
+      url                   = require('url'),
       mongoose				= require('mongoose'),
       Account 				= require("./models/account"),
       formidableMiddleware 	= require('express-formidable'),
@@ -15,6 +17,8 @@ const dotenv 				= require('dotenv').config(),
 const app = express();
 const { encrypt, decrypt } = require('./helpers/crypto');
 const { PORT = 3000, NODE_ENV = 'prod', DB_USER, DB_PASSWORD, DB_NAME } = process.env;
+
+// Order feature variables
 const fileUploadFolder = 'tmp_image_uploads';
 const fileUploadDirPath = `${__dirname}/public/${fileUploadFolder}`;
 const currencySymbols = {
@@ -38,6 +42,7 @@ mongoose.connect(`mongodb+srv://${DB_USER}:${DB_PASSWORD}@cluster0.ymgd0.mongodb
 
 // Set up App
 app.set("view engine", "ejs");
+app.use(methodOverride('_method'));
 app.use(express.static(`${__dirname}/public`));
 app.use(formidableMiddleware({
     uploadDir: fileUploadDirPath,
@@ -298,8 +303,140 @@ app.get('/orders/export', isLoggedIn, (req, res) => {
     // Maybe delete file after
 });
 
+app.get('/skugen', isLoggedIn, (req, res) => {
+    // This route will eventually hold the index page for skugen, redirecting to sku route for now
+    res.redirect('/skugen/sku');
+});
+
+app.get('/skugen/sku', isLoggedIn, async(req, res) => {
+    renderSkuPage(req, res, {...req.query, viewState: 'view'});
+});
+
+app.get('/skugen/sku/edit', isLoggedIn, async(req, res) => {
+    renderSkuPage(req, res, { ...req.query, viewState: 'edit'});
+});
+
+// Get the sku segment that corresponds to the id in the request
+app.get('/skugen/sku/seg/:id', isLoggedIn, async(req, res) => {
+    let rObj = await getSegmentById(req.session.shop, req.params.id);
+    rObj.segment ? res.send(rObj.segment) : res.status(404);
+});
+
+// Update the sku segment that corresponds to the id in the request
+app.put('/skugen/sku/seg/:id', isLoggedIn, async(req, res) => {
+    redirectUrl = '/skugen/sku/edit';
+    let {account, segment} = await getSegmentById(req.session.shop, req.params.id);
+    
+    if(!segment){
+        redirectUrl = createUrlWithSearchParams(redirectUrl, {
+            errTitle: 'Invalid Sku Segment',
+            errMsg: 'Could not find segment by Id provided.'
+        });
+    }
+    // Update condition (negative of when not to update); Don't allow update if segment type is being changed to sequence number and is not the last segment
+    else if(!(segment.type !== req.fields.skuPartType && req.fields.skuPartType === 'seqNum' && i !== account.sku.format.length - 1)){
+        segment.name = req.fields.skuPartName;
+        segment.type = req.fields.skuPartType;
+        if(req.fields.skuPartType === 'seqNum'){
+            segment.data = new Map();
+            segment.data.set('', req.fields.seqNum);
+            // Error: The update path 'sku.format.4.data.' contains an empty field name, which is not allowed.
+            // PICK UP HERE
+        } else {
+            // Create the new Sku Part
+            segment.data = new Map();
+            if(Array.isArray(req.fields.key)) for(let i = 0; i < req.fields.key.length; i++) segment.data.set(req.fields.key[i], req.fields.value[i]);
+            else segment.data.set(req.fields.key, req.fields.value);
+        }
+        await account.save();
+    } else {
+        redirectUrl = createUrlWithSearchParams(redirectUrl, {
+            errTitle: 'Invalid Sku format',
+            errMsg: 'Sequence number can only be the last segment in the sku format.'
+        });
+    }
+    res.redirect(redirectUrl);
+});
+
+// Delete the sku segment that corresponds to the id in the request
+app.delete('/skugen/sku/seg/:id', isLoggedIn, async(req, res) => {
+    let redirectUrl = '/skugen/sku/edit';
+    let segId = req.params.id;
+    let accounts = await Account.find({shop: req.session.shop});
+    let account = accounts.length ? accounts[0] : null;
+    
+    if(account) for(let i = 0; i < account.sku.format.length; i++) if(account.sku.format[i]._id == segId) account.sku.format.splice(i,1);
+    await account.save();
+
+    res.redirect(redirectUrl);
+});
+
+// Create a new sku segment according to values in req
+app.post('/skugen/sku/seg', isLoggedIn, async(req, res) => {
+    const filter = {shop: req.session.shop};
+
+    let accounts = await Account.find(filter);
+    let account = accounts.length ? accounts[0] : null;
+
+    if(account){
+        let skuFormat = account.sku.format;
+        let newSkuPart = {
+            name: req.fields.skuPartName,
+            type: req.fields.skuPartType
+        }
+
+        // Case 1: The new sku part being added is a of type tags
+        if(req.fields.skuPartType == 'tags'){
+
+            // Create the new Sku Part
+            let tagsMap = {};
+            if(Array.isArray(req.fields.key)){
+                for(let i = 0; i < req.fields.key.length; i++) tagsMap[req.fields.key[i]] = req.fields.value[i];
+            } else {
+                tagsMap[req.fields.key] = req.fields.value;
+            }
+            newSkuPart.data = tagsMap;
+
+            // Add Sku part to the skuFormat
+            // Check If new sku part is being added to the end
+            if(skuFormat.length == req.fields.skuIndex){
+                // Check if sequence number part exists, ensure it is always the last part of the sku
+                if(skuFormat.length > 0 && skuFormat[skuFormat.length-1].type == 'seqNum') skuFormat.splice(skuFormat.length-1, 0, newSkuPart);
+                else skuFormat.push(newSkuPart);
+
+            } else if(req.fields.skuIndex < skuFormat.length) {
+                skuFormat.splice(req.fields.skuIndex, 0, newSkuPart);
+            }
+
+            // Insert the updated sku format back to the Db
+            await account.save();
+            
+        } 
+        // Case 2: The new sku part being added is a of type seqNum. Insert only if sequece number part does not already exist
+        else if(req.fields.skuPartType == 'seqNum' && (skuFormat.length == 0 || skuFormat[skuFormat.length-1].type != 'seqNum')){ 
+            newSkuPart.data = { '': req.fields.seqNum };
+            skuFormat.push(newSkuPart);
+            await account.save();
+        }
+        
+        // Redirect back to the edit route (so that it re-renders the edit page with new sku format)
+        res.redirect('/skugen/sku/edit');
+    } else {
+        // return a 404 page here
+    }
+
+});
+
 // TODO: Move these functions out to a helper file.
 // ================================== HELPER FUNCTIONS ==================================
+
+// Create a URL with passed in search params
+function createUrlWithSearchParams(url, params){
+    const qs = Object.keys(params)
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    .join('&');
+    return `${url}?${qs}`;
+}
 
 // Recursively receive all the orders
 async function getOrders(shop, startTime, endTime, after){
@@ -369,6 +506,23 @@ async function getOrders(shop, startTime, endTime, after){
     }
 }
 
+/**
+ * @description Get the segment from the sku of the account 
+ * @param shopName - name of the shop to get the segment from
+ * @param segId - ID of the segment to get
+ * @return an object with the account and segement retrieved
+ */
+async function getSegmentById(shopName, segId){
+    const filter = {shop: shopName};
+    let accounts = await Account.find(filter);
+    let account = accounts.length ? accounts[0] : null;
+    
+    let segment = null;
+    if(account) for(let i = 0; i < account.sku.format.length; i++) if(account.sku.format[i]._id == segId) segment = account.sku.format[i];
+
+    return {account, segment};
+}
+
 function isLoggedIn(req, res, next) {
     if(req.session.shop) {
         return next();
@@ -392,6 +546,7 @@ async function makeApiCall(shop, data) {
     try {
         // Get AccessToken for shop
         const foundShop = await Account.find({ shop: shop });
+        console.log(foundShop);
         if (foundShop.length == 0 ) {throw "ERR: Can't find the shop in Accounts."}
 
         let config = {
@@ -405,6 +560,22 @@ async function makeApiCall(shop, data) {
         return response;
     } catch(e) {
         throw e;
+    }
+}
+
+// Render the Sku Page according to view state
+async function renderSkuPage(req, res, viewVars) {
+    let accounts = await Account.find({shop: req.session.shop});
+    let account = accounts.length ? accounts[0] : null;
+    
+    if(account) {
+        res.render('skugen', { 
+            shop: req.session.shop, 
+            skuformat: account.sku.format, 
+            ...viewVars
+        });
+    } else {
+        res.status(404);
     }
 }
 
