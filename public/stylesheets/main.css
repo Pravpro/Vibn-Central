@@ -11,3 +11,29 @@
 	z-index: 10;
 	background-color: rgba(50,50,50,0.2);
 }
+
+@media print {
+	.sku-wrapper {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+
+		height: 0.5in;
+		width: 1in;
+
+		page-break-after: always;
+	}
+	.sku {
+		margin-bottom: 0;
+		font-size: 12px;
+		font-weight: bold;
+	}
+	.container {
+		padding:0;
+	}
+}
+
+@page {
+	margin: 0;
+	/* size: 1in 0.5in; */
+}

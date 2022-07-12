@@ -1,9 +1,18 @@
 <!-- View component for Sku -->
-<% if(skuformat.length){ %>
-    <!-- Example of how to display sku format. TODO: Replace this with real data -->
-    <p>Sku Format: test + Test + TEST + test</p>
-    <p>Example Sku: M4NKWB000001</p>
-<% } else { %>
-    <p class="lead">No Sku created yet</p>
-<% } %>
-<a class="btn btn-dark" href="/skugen/sku/edit">Edit Sku</a>
+<div class="d-flex flex-column align-items-center">
+    <% if(skuformat.length){ %>
+        <!-- Example of how to display sku format. TODO: Replace this with real data -->
+        <p>Sku Format: 
+            <% for(let i = 0; i < skuformat.length ; i++){ %>
+                <% if(i > 0){ %> + <% } %>
+                <%- skuformat[i].name %>
+            <% } %> 
+        </p>
+        <p>Example Sku: 
+            <% for(let i = 0; i < skuformat.length ; i++){ %><%- skuformat[i].data.values().next().value %><% } %>
+        </p>
+    <% } else { %>
+        <p class="lead">No Sku created yet</p>
+    <% } %>
+    <a class="btn btn-dark" href="/skugen/skuformat/edit">Edit Sku</a>
+</div>
