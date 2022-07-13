@@ -41,7 +41,7 @@
                 <button type="button" class="btn-close close-modal-btn" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="sku-part-form" action="/skugen/sku/seg" method="POST">
+                <form id="sku-part-form" action="/skugen/skuformat/seg" method="POST">
                     <input name="skuIndex" type="hidden" value="">
                     <div class="mb-3">
                         <label for="skuPartName" class="form-label">Name:</label>
@@ -95,7 +95,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <form id="sku-part-del-form" action="/skugen/sku/seg" method="POST">
+                <form id="sku-part-del-form" action="/skugen/skuformat/seg" method="POST">
                     <button id='del-seg-btn' type="submit" class="btn btn-danger d-none">Delete</button>
                 </form>
                 <button type="button" class="btn btn-secondary close-modal-btn" data-bs-dismiss="modal">Close</button>

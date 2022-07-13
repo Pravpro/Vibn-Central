@@ -14,15 +14,66 @@
     </div>
 </div>
 
-<div class="container">
+<div class="container d-print-none">
     <h1 class="display-4 text-center mb-5 mt-4">SKU Gen</h1>
     
     <% if(viewState == 'view') { %>
         <%- include('./sku/view'); %>
     <% } else if(viewState == 'edit') { %>
         <%- include('./sku/edit'); %>
-    <% }%>
+    <% } else if(viewState == 'home') { %>
+        <div class="skugen-content">
+            <div class="d-flex justify-content-end">
+                <a class="btn btn-dark me-3" href="/skugen/skuformat">View SKU Format</a>
+                <a class="btn btn-dark" href="/skugen/sku/new">Generate SKUs</a>
+            </div>
+            <p class="fs-4 text-center">Sku Records List View</p>
+            <table class="table table-hover table-sm">
+                <% if(locals.records){ %>
+                    <% for(let i = 0; i < records.length; i++){ %>
+                        <% if(i == 0) { %>
+                            <thead>
+                                <tr>
+                                    <th scope="col"><input type="checkbox"></th>
+                                    <% for(let j = 0; j < records[i].length; j++){ %>
+                                        <th scope="col"><%- records[i][j].label %></th>
+                                    <% } %>
+                                </tr>
+                            </thead>
+                        <% } else { %>
+                            <% if(i == 1) { %><tbody><% } %>
+                                <tr>
+                                    <td scope="col"><input type="checkbox"></td>
+                                    <% for(let j = 0; j < records[i].length; j++){ %>
+                                        <td scope="col" data-name="<%- records[i][j].name %>"><%- records[i][j].label %></td>
+                                    <% } %>
+                                </tr>
+                            <% if(i == records.length-1){ %></tbody><% } %>
+                        <% } %>
+                    <% } %>
+                <% } %>
+            </table>
+        </div>
+    <% } else if(viewState == 'skugen') { %>
+        <%- include('./new'); %>
+    <% } %>
 
+    
+</div>
+<div id="sku-table-footer" class="skugen-content position-sticky bottom-0 bg-white border-top d-none">
+    <div class="container d-flex justify-content-between align-items-center py-2">
+        <p class="mb-0">Selected Rows: <span id="row-count"></span></p>
+        <button class="btn btn-dark generate-labels">Generate Labels</button>
+    </div>
+</div>
+
+<div id="sku-labels-screen" class="d-none">
+    <div id="skus-section" class="text-center">
+        <p class="fs-4 d-print-none">List of Generated Skus:</p>
+    </div>
+    <div class="position-sticky bottom-0 bg-white border-top d-flex justify-content-center d-print-none py-2">
+        <button class="btn btn-dark print-btn">Print Labels</button>
+    </div>
 </div>
 
 <%- include('../partials/scripts'); %>

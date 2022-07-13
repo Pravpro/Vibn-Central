@@ -31,6 +31,7 @@ const paymentMethods = {
     paypal : 'PayPal'
 }
 const ORDERS_EXPORT_DIR = './order-exports';
+const SEQUENCE_NUM_TYPE = 'seqNum';
 
 // Connect to DB
 mongoose.connect(`mongodb+srv://${DB_USER}:${DB_PASSWORD}@cluster0.ymgd0.mongodb.net/${DB_NAME}?retryWrites=true&w=majority`, {
@@ -303,28 +304,154 @@ app.get('/orders/export', isLoggedIn, (req, res) => {
     // Maybe delete file after
 });
 
-app.get('/skugen', isLoggedIn, (req, res) => {
-    // This route will eventually hold the index page for skugen, redirecting to sku route for now
-    res.redirect('/skugen/sku');
-});
-
 app.get('/skugen/sku', isLoggedIn, async(req, res) => {
-    renderSkuPage(req, res, {...req.query, viewState: 'view'});
+    // This route will eventually hold the index page for skugen, redirecting to sku route for now
+    let accounts = await Account.find({shop: req.session.shop});
+    let account = accounts.length ? accounts[0] : null;
+    let skuPropsList = Account.schema.obj.sku.records[0].obj ? Object.keys(Account.schema.obj.sku.records[0].obj) : [];
+    skuPropsList.push('createdDate');
+    
+    let table = [];
+    let row1 = [];
+    skuPropsList.forEach(prop => {
+        row1.push({ 
+            label: prop.charAt(0).toUpperCase() + prop.split(/(?=[A-Z])/).join(' ').slice(1),
+            value: '',
+            name: prop
+        });
+    });
+
+    table.push(row1);
+
+    if(account) {
+
+        account.sku.records.sort((a, b) => {
+            return a._id < b._id ? 1 : -1
+        });
+
+        let formatter = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'CAD'
+        });
+
+        account.sku.records.forEach(rec => {
+            let newRow = [];
+            skuPropsList.forEach(prop => {
+                let label = rec[prop];
+                let value = rec[prop];
+                if(prop == 'createdDate'){
+                    label = value = rec._id.getTimestamp().toLocaleString();
+                } else if (prop == 'costOfGood'){
+                    label = formatter.format(rec[prop]).slice(2);
+                }
+                newRow.push({
+                    label: label,
+                    value: value,
+                    name: prop
+                });
+            });
+            table.push(newRow);
+        });
+
+        res.render('skugen', { 
+            shop: req.session.shop,
+            records: table,
+            viewState: 'home'
+        });
+    }
 });
 
-app.get('/skugen/sku/edit', isLoggedIn, async(req, res) => {
-    renderSkuPage(req, res, { ...req.query, viewState: 'edit'});
+// Process the data for creating a sku
+app.post('/skugen/sku', isLoggedIn, async(req, res) => {
+    console.log(req.fields);
+
+    let accounts = await Account.find({shop: req.session.shop});
+    let account = accounts.length ? accounts[0] : null;
+
+    if(!account) res.send({error:'Could not find account'}).status(404);
+    else if(!account.sku.format || !account.sku.format.length) res.send({error:'Could not find sku format data'}).status(404);
+    else {
+        let seqNumSeg;
+        let skuPrefix = '';
+        account.sku.format.forEach( segment => {
+            if(segment.type != SEQUENCE_NUM_TYPE){
+                skuPrefix += segment.data.get(req.fields.segments[segment.name]);
+            } else seqNumSeg = segment;
+        });
+        console.log(skuPrefix);
+        console.log(seqNumSeg);
+
+        let curCount = account.sku.counter && account.sku.counter.get(skuPrefix) ? account.sku.counter.get(skuPrefix) : parseInt(seqNumSeg.data.get(''))-1;
+        let seqNumLength = seqNumSeg.data.get('').length;
+
+        // console.log(curCount);
+        // console.log(seqNumLength);
+
+        // Create records array if it doesn't exist (only needed for first time)
+        if(!account.sku.records) account.sku.records = [];
+
+        generatedSkus = [];
+        // Check if enough length of sequence number for generating all sequence numbers
+        if((curCount + req.fields.copies).toString().length > seqNumLength) res.send({error:'Sequence Number format is not long enough. Please increase length by editing the SKU format.'}).status(404);
+        for(let i = 0; i < req.fields.copies; i++){
+            curCount++;
+            let sku = skuPrefix + '0'.repeat(seqNumLength - curCount.toString().length) + curCount;
+            account.sku.records.push({ 
+                skuNum: sku, 
+                ...req.fields.properties
+            });
+            generatedSkus.push(sku);
+        }
+
+        if(!account.sku.counter) account.sku.counter = new Map();
+        account.sku.counter.set(skuPrefix, curCount);
+
+        // console.log(account.sku.records);
+        // console.log(account.sku.counter);
+        // console.log(generatedSkus);
+        await account.save();
+        res.send(generatedSkus);
+
+    }
+    
+
+    // res.send({error: 'Unknown Server Error'}).status(500);
+});
+
+// Render the form to create SKUs
+app.get('/skugen/sku/new', isLoggedIn, (req, res) => {
+    let skuPropsInputs = [];
+    let skuProps = Account.schema.obj.sku.records[0].obj;
+
+    // Build properties list to help render inputs
+    Object.keys(skuProps).filter(prop => prop !== 'skuNum').forEach(prop => {
+        skuPropsInputObj = {};
+        skuPropsInputObj.name = prop;
+        skuPropsInputObj.type = typeof(skuProps[prop]()) == 'number' ? 'number' : 'text';
+        skuPropsInputObj.label = prop.charAt(0).toUpperCase() + prop.split(/(?=[A-Z])/).join(' ').slice(1);
+
+        skuPropsInputs.push(skuPropsInputObj);
+    });
+    renderSkuPage(req, res, { skuProps: skuPropsInputs, viewState: 'skugen'});
+});
+
+app.get('/skugen/skuformat', isLoggedIn, async(req, res) => {
+    renderSkuPage(req, res, { viewState: 'view'});
+});
+
+app.get('/skugen/skuformat/edit', isLoggedIn, async(req, res) => {
+    renderSkuPage(req, res, { viewState: 'edit'});
 });
 
 // Get the sku segment that corresponds to the id in the request
-app.get('/skugen/sku/seg/:id', isLoggedIn, async(req, res) => {
+app.get('/skugen/skuformat/seg/:id', isLoggedIn, async(req, res) => {
     let rObj = await getSegmentById(req.session.shop, req.params.id);
     rObj.segment ? res.send(rObj.segment) : res.status(404);
 });
 
 // Update the sku segment that corresponds to the id in the request
-app.put('/skugen/sku/seg/:id', isLoggedIn, async(req, res) => {
-    redirectUrl = '/skugen/sku/edit';
+app.put('/skugen/skuformat/seg/:id', isLoggedIn, async(req, res) => {
+    redirectUrl = '/skugen/skuformat/edit';
     let {account, segment} = await getSegmentById(req.session.shop, req.params.id);
     
     if(!segment){
@@ -334,13 +461,12 @@ app.put('/skugen/sku/seg/:id', isLoggedIn, async(req, res) => {
         });
     }
     // Update condition (negative of when not to update); Don't allow update if segment type is being changed to sequence number and is not the last segment
-    else if(!(segment.type !== req.fields.skuPartType && req.fields.skuPartType === 'seqNum' && i !== account.sku.format.length - 1)){
+    else if(!(segment.type !== req.fields.skuPartType && req.fields.skuPartType === SEQUENCE_NUM_TYPE && i !== account.sku.format.length - 1)){
         segment.name = req.fields.skuPartName;
         segment.type = req.fields.skuPartType;
-        if(req.fields.skuPartType === 'seqNum'){
-            segment.data = new Map();
-            segment.data.set('', req.fields.seqNum);
-            // Error: The update path 'sku.format.4.data.' contains an empty field name, which is not allowed.
+        if(req.fields.skuPartType === SEQUENCE_NUM_TYPE){
+            segment.data = { '': req.fields.seqNum };
+            // Error: The update path 'sku.format.2.data.' contains an empty field name, which is not allowed.
             // PICK UP HERE
         } else {
             // Create the new Sku Part
@@ -359,8 +485,8 @@ app.put('/skugen/sku/seg/:id', isLoggedIn, async(req, res) => {
 });
 
 // Delete the sku segment that corresponds to the id in the request
-app.delete('/skugen/sku/seg/:id', isLoggedIn, async(req, res) => {
-    let redirectUrl = '/skugen/sku/edit';
+app.delete('/skugen/skuformat/seg/:id', isLoggedIn, async(req, res) => {
+    let redirectUrl = '/skugen/skuformat/edit';
     let segId = req.params.id;
     let accounts = await Account.find({shop: req.session.shop});
     let account = accounts.length ? accounts[0] : null;
@@ -372,7 +498,7 @@ app.delete('/skugen/sku/seg/:id', isLoggedIn, async(req, res) => {
 });
 
 // Create a new sku segment according to values in req
-app.post('/skugen/sku/seg', isLoggedIn, async(req, res) => {
+app.post('/skugen/skuformat/seg', isLoggedIn, async(req, res) => {
     const filter = {shop: req.session.shop};
 
     let accounts = await Account.find(filter);
@@ -401,7 +527,7 @@ app.post('/skugen/sku/seg', isLoggedIn, async(req, res) => {
             // Check If new sku part is being added to the end
             if(skuFormat.length == req.fields.skuIndex){
                 // Check if sequence number part exists, ensure it is always the last part of the sku
-                if(skuFormat.length > 0 && skuFormat[skuFormat.length-1].type == 'seqNum') skuFormat.splice(skuFormat.length-1, 0, newSkuPart);
+                if(skuFormat.length > 0 && skuFormat[skuFormat.length-1].type == SEQUENCE_NUM_TYPE) skuFormat.splice(skuFormat.length-1, 0, newSkuPart);
                 else skuFormat.push(newSkuPart);
 
             } else if(req.fields.skuIndex < skuFormat.length) {
@@ -413,14 +539,14 @@ app.post('/skugen/sku/seg', isLoggedIn, async(req, res) => {
             
         } 
         // Case 2: The new sku part being added is a of type seqNum. Insert only if sequece number part does not already exist
-        else if(req.fields.skuPartType == 'seqNum' && (skuFormat.length == 0 || skuFormat[skuFormat.length-1].type != 'seqNum')){ 
+        else if(req.fields.skuPartType == SEQUENCE_NUM_TYPE && (skuFormat.length == 0 || skuFormat[skuFormat.length-1].type != SEQUENCE_NUM_TYPE)){ 
             newSkuPart.data = { '': req.fields.seqNum };
             skuFormat.push(newSkuPart);
             await account.save();
         }
         
         // Redirect back to the edit route (so that it re-renders the edit page with new sku format)
-        res.redirect('/skugen/sku/edit');
+        res.redirect('/skugen/skuformat/edit');
     } else {
         // return a 404 page here
     }
@@ -571,7 +697,7 @@ async function renderSkuPage(req, res, viewVars) {
     if(account) {
         res.render('skugen', { 
             shop: req.session.shop, 
-            skuformat: account.sku.format, 
+            skuformat: account.sku.format,
             ...viewVars
         });
     } else {

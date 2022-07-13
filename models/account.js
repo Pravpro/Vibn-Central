@@ -8,13 +8,21 @@ const FormatSegmentSchema = new Schema({
 	data: Map
 });
 
+// SKU Properties Schema setup
+const SkuPropertiesSchema = new Schema({
+	skuNum: String,
+	costOfGood: Number,
+	location: String
+});
+
 // Account schema setup
 const AccountSchema = new Schema({
 	shop: String,
 	accessToken: Object,
 	sku: {
-		format: [FormatSegmentSchema],
-		record: { type: Map, of: Number }
+		format: [ FormatSegmentSchema ],
+		counter: { type: Map, of: Number },
+		records: [ SkuPropertiesSchema ]
 	}
 });
 
