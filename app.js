@@ -233,7 +233,7 @@ app.post('/orders', isLoggedIn, async (req, res) => {
 
     // Create the CSV writer
     const csvWriter = createCsvWriter({
-        header: ['Date', 'Product Name', 'Customer', 'Address', 'Payment Method', 'Sale Price'],
+        header: ['Date', 'Product ID', 'Product Name', 'Customer', 'Address', 'Cost of Good', 'Payment Method', 'Sale Price'],
         path: `${ORDERS_EXPORT_DIR}/${req.session.shop}.csv`
     });
 
@@ -272,8 +272,9 @@ app.post('/orders', isLoggedIn, async (req, res) => {
         // Create a record for each product in the order
         for(let j = 0; j < order.lineItems.edges.length; j++){
             let product = order.lineItems.edges[j].node;
+            let costOfGood = product.variant && product.variant.inventoryItem && product.variant.inventoryItem.unitCost ? `${currencySymbols[product.variant.inventoryItem.unitCost.currencyCode]}${product.variant.inventoryItem.unitCost.amount}` : '0';
             // Create record and only put salePrice and tax on first item
-            records.push([dateString, product.name, customerName, address, (j ? '' : paymentMethod), (j ? '' : salePrice)]);
+            records.push([dateString, product.sku, product.name, customerName, address, costOfGood, (j ? '' : paymentMethod), (j ? '' : salePrice)]);
         }
 
     }
@@ -574,10 +575,19 @@ async function getOrders(shop, startTime, endTime, after){
                 edges {
                   node {
                     createdAt
-                    lineItems(first:50) {
+                    lineItems(first:25) {
                       edges {
                         node {
                           name
+                          sku
+                          variant {
+                            inventoryItem {
+                              unitCost {
+                                amount
+                                currencyCode
+                              }
+                            }
+                          }
                         }
                       }
                     }
