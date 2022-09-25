@@ -19,11 +19,6 @@ const SkuPropertiesSchema = new Schema({
 const AccountSchema = new Schema({
 	shop: String,
 	accessToken: Object,
-	sku: {
-		format: [ FormatSegmentSchema ],
-		counter: { type: Map, of: Number },
-		records: [ SkuPropertiesSchema ]
-	},
 	skuFormat: [ FormatSegmentSchema ],
 	skuCounter: { type: Map, of: Number },
 	skuRecords: [ SkuPropertiesSchema ]
