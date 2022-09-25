@@ -362,34 +362,6 @@ app.get('/skugen/sku', isLoggedIn, async(req, res) => {
     }
 });
 
-app.get('/skugen/fixme', isLoggedIn, async(req,res) => {
-    let accounts = await Account.find({shop: req.session.shop});
-    let account = accounts.length ? accounts[0] : null;
-
-    if(!account) res.send('Could not find account').status(404);
-    else{
-        // migrate sku format
-        account.skuformat = [];
-        for(let i = 0; i < account.sku.format.length; i++) {
-            account.skuFormat.push(JSON.parse(JSON.stringify(account.sku.format[i])));
-        }
-
-        // migrate sku counter
-        account.skuCounter = JSON.parse(JSON.stringify(account.sku.counter));
-
-        // migrate sku records
-        account.skuRecords = [];
-        for(let i = 0; i < account.sku.records.length; i++){
-            account.skuRecords.push(JSON.parse(JSON.stringify(account.sku.records[i])))
-        }
-
-        account.sku = null;
-
-        await account.save();
-        res.send("Operation complete. Data Model has been fixed.");
-    }
-});
-
 // Process the data for creating a sku
 app.post('/skugen/sku', isLoggedIn, async(req, res) => {
     console.log(req.fields);
