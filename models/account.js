@@ -23,7 +23,10 @@ const AccountSchema = new Schema({
 		format: [ FormatSegmentSchema ],
 		counter: { type: Map, of: Number },
 		records: [ SkuPropertiesSchema ]
-	}
+	},
+	skuFormat: [ FormatSegmentSchema ],
+	skuCounter: { type: Map, of: Number },
+	skuRecords: [ SkuPropertiesSchema ]
 });
 
 // Model

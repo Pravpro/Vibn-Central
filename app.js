@@ -222,7 +222,7 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
 app.get('/orders', isLoggedIn, (req, res) => {
     res.render('orders', {shop: req.session.shop});
 });
-         
+
 app.post('/orders', isLoggedIn, async (req, res) => {
     console.log(req.fields.timeZone);
     // Define after for pagination purposes
@@ -309,7 +309,7 @@ app.get('/skugen/sku', isLoggedIn, async(req, res) => {
     // This route will eventually hold the index page for skugen, redirecting to sku route for now
     let accounts = await Account.find({shop: req.session.shop});
     let account = accounts.length ? accounts[0] : null;
-    let skuPropsList = Account.schema.obj.sku.records[0].obj ? Object.keys(Account.schema.obj.sku.records[0].obj) : [];
+    let skuPropsList = Account.schema.obj.skuRecords[0].obj ? Object.keys(Account.schema.obj.skuRecords[0].obj) : [];
     skuPropsList.push('createdDate');
     
     let table = [];
@@ -326,7 +326,7 @@ app.get('/skugen/sku', isLoggedIn, async(req, res) => {
 
     if(account) {
 
-        account.sku.records.sort((a, b) => {
+        account.skuRecords.sort((a, b) => {
             return a._id < b._id ? 1 : -1
         });
 
@@ -335,7 +335,7 @@ app.get('/skugen/sku', isLoggedIn, async(req, res) => {
             currency: 'CAD'
         });
 
-        account.sku.records.forEach(rec => {
+        account.skuRecords.forEach(rec => {
             let newRow = [];
             skuPropsList.forEach(prop => {
                 let label = rec[prop];
@@ -362,6 +362,34 @@ app.get('/skugen/sku', isLoggedIn, async(req, res) => {
     }
 });
 
+app.get('/skugen/fixme', isLoggedIn, async(req,res) => {
+    let accounts = await Account.find({shop: req.session.shop});
+    let account = accounts.length ? accounts[0] : null;
+
+    if(!account) res.send('Could not find account').status(404);
+    else{
+        // migrate sku format
+        account.skuformat = [];
+        for(let i = 0; i < account.sku.format.length; i++) {
+            account.skuFormat.push(JSON.parse(JSON.stringify(account.sku.format[i])));
+        }
+
+        // migrate sku counter
+        account.skuCounter = JSON.parse(JSON.stringify(account.sku.counter));
+
+        // migrate sku records
+        account.skuRecords = [];
+        for(let i = 0; i < account.sku.records.length; i++){
+            account.skuRecords.push(JSON.parse(JSON.stringify(account.sku.records[i])))
+        }
+
+        account.sku = null;
+
+        await account.save();
+        res.send("Operation complete. Data Model has been fixed.");
+    }
+});
+
 // Process the data for creating a sku
 app.post('/skugen/sku', isLoggedIn, async(req, res) => {
     console.log(req.fields);
@@ -370,11 +398,11 @@ app.post('/skugen/sku', isLoggedIn, async(req, res) => {
     let account = accounts.length ? accounts[0] : null;
 
     if(!account) res.send({error:'Could not find account'}).status(404);
-    else if(!account.sku.format || !account.sku.format.length) res.send({error:'Could not find sku format data'}).status(404);
+    else if(!account.skuFormat || !account.skuFormat.length) res.send({error:'Could not find sku format data'}).status(404);
     else {
         let seqNumSeg;
         let skuPrefix = '';
-        account.sku.format.forEach( segment => {
+        account.skuFormat.forEach( segment => {
             if(segment.type != SEQUENCE_NUM_TYPE){
                 skuPrefix += segment.data.get(req.fields.segments[segment.name]);
             } else seqNumSeg = segment;
@@ -382,14 +410,14 @@ app.post('/skugen/sku', isLoggedIn, async(req, res) => {
         console.log(skuPrefix);
         console.log(seqNumSeg);
 
-        let curCount = account.sku.counter && account.sku.counter.get(skuPrefix) ? account.sku.counter.get(skuPrefix) : parseInt(seqNumSeg.data.get(''))-1;
+        let curCount = account.skuCounter && account.skuCounter.get(skuPrefix) ? account.skuCounter.get(skuPrefix) : parseInt(seqNumSeg.data.get(''))-1;
         let seqNumLength = seqNumSeg.data.get('').length;
 
         // console.log(curCount);
         // console.log(seqNumLength);
 
         // Create records array if it doesn't exist (only needed for first time)
-        if(!account.sku.records) account.sku.records = [];
+        if(!account.skuRecords) account.skuRecords = [];
 
         generatedSkus = [];
         // Check if enough length of sequence number for generating all sequence numbers
@@ -397,18 +425,18 @@ app.post('/skugen/sku', isLoggedIn, async(req, res) => {
         for(let i = 0; i < req.fields.copies; i++){
             curCount++;
             let sku = skuPrefix + '0'.repeat(seqNumLength - curCount.toString().length) + curCount;
-            account.sku.records.push({ 
+            account.skuRecords.push({ 
                 skuNum: sku, 
                 ...req.fields.properties
             });
             generatedSkus.push(sku);
         }
 
-        if(!account.sku.counter) account.sku.counter = new Map();
-        account.sku.counter.set(skuPrefix, curCount);
+        if(!account.skuCounter) account.skuCounter = new Map();
+        account.skuCounter.set(skuPrefix, curCount);
 
-        // console.log(account.sku.records);
-        // console.log(account.sku.counter);
+        // console.log(account.skuRecords);
+        // console.log(account.skuCounter);
         // console.log(generatedSkus);
         await account.save();
         res.send(generatedSkus);
@@ -422,7 +450,7 @@ app.post('/skugen/sku', isLoggedIn, async(req, res) => {
 // Render the form to create SKUs
 app.get('/skugen/sku/new', isLoggedIn, (req, res) => {
     let skuPropsInputs = [];
-    let skuProps = Account.schema.obj.sku.records[0].obj;
+    let skuProps = Account.schema.obj.skuRecords[0].obj;
 
     // Build properties list to help render inputs
     Object.keys(skuProps).filter(prop => prop !== 'skuNum').forEach(prop => {
@@ -462,12 +490,12 @@ app.put('/skugen/skuformat/seg/:id', isLoggedIn, async(req, res) => {
         });
     }
     // Update condition (negative of when not to update); Don't allow update if segment type is being changed to sequence number and is not the last segment
-    else if(!(segment.type !== req.fields.skuPartType && req.fields.skuPartType === SEQUENCE_NUM_TYPE && i !== account.sku.format.length - 1)){
+    else if(!(segment.type !== req.fields.skuPartType && req.fields.skuPartType === SEQUENCE_NUM_TYPE && i !== account.skuFormat.length - 1)){
         segment.name = req.fields.skuPartName;
         segment.type = req.fields.skuPartType;
         if(req.fields.skuPartType === SEQUENCE_NUM_TYPE){
             segment.data = { '': req.fields.seqNum };
-            // Error: The update path 'sku.format.2.data.' contains an empty field name, which is not allowed.
+            // Error: The update path 'skuFormat.2.data.' contains an empty field name, which is not allowed.
             // PICK UP HERE
         } else {
             // Create the new Sku Part
@@ -492,7 +520,7 @@ app.delete('/skugen/skuformat/seg/:id', isLoggedIn, async(req, res) => {
     let accounts = await Account.find({shop: req.session.shop});
     let account = accounts.length ? accounts[0] : null;
     
-    if(account) for(let i = 0; i < account.sku.format.length; i++) if(account.sku.format[i]._id == segId) account.sku.format.splice(i,1);
+    if(account) for(let i = 0; i < account.skuFormat.length; i++) if(account.skuFormat[i]._id == segId) account.skuFormat.splice(i,1);
     await account.save();
 
     res.redirect(redirectUrl);
@@ -506,7 +534,7 @@ app.post('/skugen/skuformat/seg', isLoggedIn, async(req, res) => {
     let account = accounts.length ? accounts[0] : null;
 
     if(account){
-        let skuFormat = account.sku.format;
+        let skuFormat = account.skuFormat;
         let newSkuPart = {
             name: req.fields.skuPartName,
             type: req.fields.skuPartType
@@ -654,7 +682,7 @@ async function getSegmentById(shopName, segId){
     let account = accounts.length ? accounts[0] : null;
     
     let segment = null;
-    if(account) for(let i = 0; i < account.sku.format.length; i++) if(account.sku.format[i]._id == segId) segment = account.sku.format[i];
+    if(account) for(let i = 0; i < account.skuFormat.length; i++) if(account.skuFormat[i]._id == segId) segment = account.skuFormat[i];
 
     return {account, segment};
 }
@@ -707,7 +735,7 @@ async function renderSkuPage(req, res, viewVars) {
     if(account) {
         res.render('skugen', { 
             shop: req.session.shop, 
-            skuformat: account.sku.format,
+            skuformat: account.skuFormat,
             ...viewVars
         });
     } else {
