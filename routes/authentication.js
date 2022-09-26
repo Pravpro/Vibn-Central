@@ -10,7 +10,7 @@ const { encrypt, decrypt } = require('../helpers/crypto');
 
 // Important Variables for Authentication
 const { APP_API_KEY, APP_API_SECRET, FORWARDING_ADDRESS } = process.env;
-const scopes = ['write_products','write_inventory','read_orders'];
+const scopes = ['write_products','write_inventory','read_orders', 'read_all_orders'];
 
 const shopifyToken = new ShopifyToken({
   sharedSecret: APP_API_SECRET,
