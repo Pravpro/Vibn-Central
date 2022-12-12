@@ -59,6 +59,9 @@ $('body').on('click', 'tbody>tr', ev => selectRow(ev) );
 // Handle Row Select
 $('body').on('click', 'th>input', ev => selectAll(ev) );
 
+// Handle Sku Search
+$('body').on('submit', '#sku-search-form', () => $('.spinner-wrapper').removeClass('d-none') );
+
 
 // Check validity for enabling navigation buttons
 let doNavBtnValidations = () => {
@@ -67,6 +70,11 @@ let doNavBtnValidations = () => {
 
     $('button[name="next"]').prop('disabled', !enableNext);
     $('button[name="prev"]').prop('disabled', !enablePrev);
+}
+
+// Perform a search and reload table with new data
+let doSearch = (ev) => {
+    
 }
 
 // Pre Populate the sku segment form by using the unique mongoose object id  
