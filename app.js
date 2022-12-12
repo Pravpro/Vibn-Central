@@ -4,11 +4,8 @@ const dotenv 				= require('dotenv').config(),
       express				= require('express'),
       methodOverride        = require('method-override'),
       session				= require('express-session'),
-      crypto 				= require('crypto'),
-      querystring 			= require('querystring'),
       axios 				= require('axios'),
       path					= require('path'),
-      url                   = require('url'),
       mongoose				= require('mongoose'),
       Account 				= require("./models/account"),
       formidableMiddleware 	= require('express-formidable'),
@@ -305,10 +302,13 @@ app.get('/orders/export', isLoggedIn, (req, res) => {
     // Maybe delete file after
 });
 
+// This route will eventually hold the index page for skugen, redirecting to sku route for now
 app.get('/skugen/sku', isLoggedIn, async(req, res) => {
-    // This route will eventually hold the index page for skugen, redirecting to sku route for now
-    let accounts = await Account.find({shop: req.session.shop});
-    let account = accounts.length ? accounts[0] : null;
+    // Get search query
+    const searchStr = req.query.search;
+    
+    // TODO: Create helper function to build table
+    // Table Header
     let skuPropsList = Account.schema.obj.skuRecords[0].obj ? Object.keys(Account.schema.obj.skuRecords[0].obj) : [];
     skuPropsList.push('createdDate');
     
@@ -321,9 +321,13 @@ app.get('/skugen/sku', isLoggedIn, async(req, res) => {
             name: prop
         });
     });
-
+    
     table.push(row1);
-
+    
+    // Table Data
+    let accounts = searchStr ? await getSearchResults(req.session.shop, searchStr) : await Account.find({shop: req.session.shop});
+    let account = accounts.length ? accounts[0] : null;
+    console.log(account);
     if(account) {
 
         account.skuRecords.sort((a, b) => {
@@ -357,6 +361,7 @@ app.get('/skugen/sku', isLoggedIn, async(req, res) => {
         res.render('skugen', { 
             shop: req.session.shop,
             records: table,
+            search: searchStr ? searchStr : '',
             viewState: 'home'
         });
     }
@@ -640,6 +645,34 @@ async function getOrders(shop, startTime, endTime, after){
     catch(e){ 
         throw e;
     }
+}
+
+/**
+ * @description get Account with the SkuRecords based on a search query string
+ * @param searchStr - name of the shop to get the segment from
+ * @return Account mongodb document
+ */
+async function getSearchResults(shopName, searchStr) {
+    return await Account.aggregate(
+        [
+            { "$match": { "shop": shopName } }, 
+            { 
+                "$redact": { 
+                    "$cond": [
+                        { 
+                            "$regexMatch": { 
+                                input: { 
+                                    "$ifNull": [ "$skuNum", searchStr ] 
+                                }, 
+                                regex: new RegExp(searchStr)
+                            }
+                        }, 
+                        "$$DESCEND", 
+                        "$$PRUNE"
+                    ]
+                }
+            }
+        ]);
 }
 
 /**

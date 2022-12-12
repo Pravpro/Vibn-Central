@@ -14,6 +14,13 @@
     </div>
 </div>
 
+<!-- Loading Spinner -->
+<div class="spinner-wrapper d-flex justify-content-center align-items-center position-absolute w-100 h-100 top-0 start-0 d-none">
+    <div class="spinner-border text-warning" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
 <div class="container d-print-none">
     <h1 class="display-4 text-center mb-5 mt-4">SKU Gen</h1>
     
@@ -23,11 +30,28 @@
         <%- include('./sku/edit'); %>
     <% } else if(viewState == 'home') { %>
         <div class="skugen-content">
-            <div class="d-flex justify-content-end">
-                <a class="btn btn-dark me-3" href="/skugen/skuformat">View SKU Format</a>
-                <a class="btn btn-dark" href="/skugen/sku/new">Generate SKUs</a>
+            <div class="d-flex justify-content-between">
+                <!-- left -->
+                <div class="w-25">
+                    <!-- Search -->
+                    <form id="sku-search-form" action="/skugen/sku" method="get">
+                        <div class="input-group">
+                            <input name="search" type="text" value="<%-search%>" class="form-control" placeholder="Search Sku Number" aria-label="Search bar" aria-describedby="skus-search">
+                            <button class="btn btn-outline-secondary" type="submit" id="skus-search"><i class="bi bi-search"></i></button>
+                        </div>
+                    </form>
+                </div>
+                <!-- right -->
+                <div>
+                    <a class="btn btn-dark me-3" href="/skugen/skuformat">View SKU Format</a>
+                    <a class="btn btn-dark" href="/skugen/sku/new">Generate SKUs</a>
+                </div>
             </div>
+
+            <!-- Table Title -->
             <p class="fs-4 text-center">Sku Records List View</p>
+
+            <!-- Sku Table -->
             <table class="table table-hover table-sm">
                 <% if(locals.records){ %>
                     <% for(let i = 0; i < records.length; i++){ %>
