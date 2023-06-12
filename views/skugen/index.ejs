@@ -31,7 +31,7 @@
     <% } else if(viewState == 'home') { %>
         <div class="skugen-content">
             <div class="d-flex justify-content-between">
-                <!-- left -->
+                <!-- Header left -->
                 <div class="w-25">
                     <!-- Search -->
                     <form id="sku-search-form" action="/skugen/sku" method="get">
@@ -41,7 +41,7 @@
                         </div>
                     </form>
                 </div>
-                <!-- right -->
+                <!-- Header right -->
                 <div>
                     <a class="btn btn-dark me-3" href="/skugen/skuformat">View SKU Format</a>
                     <a class="btn btn-dark" href="/skugen/sku/new">Generate SKUs</a>
@@ -87,7 +87,10 @@
 <div id="sku-table-footer" class="skugen-content position-sticky bottom-0 bg-white border-top d-none">
     <div class="container d-flex justify-content-between align-items-center py-2">
         <p class="mb-0">Selected Rows: <span id="row-count"></span></p>
-        <button class="btn btn-dark generate-labels">Generate Labels</button>
+        <div>
+            <button class="btn btn-outline-danger me-2" data-bs-toggle="modal" data-bs-target="#deleteModal">Delete Skus</button>
+            <button class="btn btn-dark generate-labels">Generate Labels</button>
+        </div>
     </div>
 </div>
 
@@ -97,6 +100,25 @@
     </div>
     <div class="position-sticky bottom-0 bg-white border-top d-flex justify-content-center d-print-none py-2">
         <button class="btn btn-dark print-btn">Print Labels</button>
+    </div>
+</div>
+  
+<!-- Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="deleteLabel">Delete Skus?</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete all the selected skus?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="del-skus" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
     </div>
 </div>
 

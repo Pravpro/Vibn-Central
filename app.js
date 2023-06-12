@@ -325,9 +325,9 @@ app.get('/skugen/sku', isLoggedIn, async(req, res) => {
     table.push(row1);
     
     // Table Data
-    let accounts = searchStr ? await getSearchResults(req.session.shop, searchStr) : await Account.find({shop: req.session.shop});
+    let accounts = searchStr ? await getSkuResults(req.session.shop, [searchStr], false) : await Account.find({shop: req.session.shop});
     let account = accounts.length ? accounts[0] : null;
-    console.log(account);
+    // console.log(account);
     if(account) {
 
         account.skuRecords.sort((a, b) => {
@@ -367,9 +367,25 @@ app.get('/skugen/sku', isLoggedIn, async(req, res) => {
     }
 });
 
+// Route to allow the deletion of an array of sku numbers. Expects a list of skus to be sent in the request.
+app.delete('/skugen/sku', isLoggedIn, async (req, res) => {
+    let skusToDelete = req.fields.skus;
+    console.log(skusToDelete);
+    if(skusToDelete){
+        let accounts = await getSkuResults(req.session.shop, skusToDelete, true);
+        console.log(accounts);
+        let account = accounts.length ? accounts[0] : null;
+
+        if(account){
+            console.log(account);
+            res.send();
+        } else res.status(404).send("Couldn't find any matching accounts.");
+    }
+});
+
 // Process the data for creating a sku
 app.post('/skugen/sku', isLoggedIn, async(req, res) => {
-    console.log(req.fields);
+    // console.log(req.fields);
 
     let accounts = await Account.find({shop: req.session.shop});
     let account = accounts.length ? accounts[0] : null;
@@ -384,8 +400,8 @@ app.post('/skugen/sku', isLoggedIn, async(req, res) => {
                 skuPrefix += segment.data.get(req.fields.segments[segment.name]);
             } else seqNumSeg = segment;
         });
-        console.log(skuPrefix);
-        console.log(seqNumSeg);
+        // console.log(skuPrefix);
+        // console.log(seqNumSeg);
 
         let curCount = account.skuCounter && account.skuCounter.get(skuPrefix) ? account.skuCounter.get(skuPrefix) : parseInt(seqNumSeg.data.get(''))-1;
         let seqNumLength = seqNumSeg.data.get('').length;
@@ -648,11 +664,14 @@ async function getOrders(shop, startTime, endTime, after){
 }
 
 /**
- * @description get Account with the SkuRecords based on a search query string
- * @param searchStr - name of the shop to get the segment from
+ * @description get Account with the SkuRecords based on search terms passed in.
+ * @param shopName - name of the shop to get the segment from.
+ * @param searchStrings - array of strings to do a regex match on sku numbers.
+ * @param prune - boolean if true, then prune all skus in array searchString from the results of the query, 
+ *                if false then keep only the skus in results returned.
  * @return Account mongodb document
  */
-async function getSearchResults(shopName, searchStr) {
+async function getSkuResults(shopName, searchStrings, prune) {
     return await Account.aggregate(
         [
             { "$match": { "shop": shopName } }, 
@@ -662,17 +681,18 @@ async function getSearchResults(shopName, searchStr) {
                         { 
                             "$regexMatch": { 
                                 input: { 
-                                    "$ifNull": [ "$skuNum", searchStr ] 
+                                    "$ifNull": [ "$skuNum", prune ? 'abcd1234' : searchStrings[0] ] 
                                 }, 
-                                regex: new RegExp(searchStr)
+                                regex: new RegExp(searchStrings.join('|'))
                             }
                         }, 
-                        "$$DESCEND", 
-                        "$$PRUNE"
+                        prune ? "$$PRUNE"   : "$$DESCEND",
+                        prune ? "$$DESCEND" : "$$PRUNE"
                     ]
                 }
             }
-        ]);
+        ]
+    );
 }
 
 /**

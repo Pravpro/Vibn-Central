@@ -62,6 +62,31 @@ $('body').on('click', 'th>input', ev => selectAll(ev) );
 // Handle Sku Search
 $('body').on('submit', '#sku-search-form', () => $('.spinner-wrapper').removeClass('d-none') );
 
+// Handle Sku deletion
+$('body').on('click', '#del-skus', () => doSkusDeletion() );
+
+// Loop through all selected skus, put them into an array to send to the back end to be deleted
+let doSkusDeletion = async() => {
+    let skusToDelete = [];
+    $('tbody>tr.table-active').find('[data-name="skuNum"]').each( function(){
+        skusToDelete.push( $(this).text() );
+    });
+    
+    try {
+        let data = {};
+        data.skus = skusToDelete;
+        let response = await axios.delete("/skugen/sku", {data: data});
+        console.log(response.status);
+        if(response.status == '200'){
+            // Refresh page to show updated table
+            window.location.reload();
+        } else showToast("Error Deleting Skus", "A server error occured while trying to delete skus.");
+    } catch(e){
+        showToast("Error", e);
+    }
+}
+
+// CONSIDER: show number of skus about to be deleted on prompt screen.
 
 // Check validity for enabling navigation buttons
 let doNavBtnValidations = () => {
@@ -70,11 +95,6 @@ let doNavBtnValidations = () => {
 
     $('button[name="next"]').prop('disabled', !enableNext);
     $('button[name="prev"]').prop('disabled', !enablePrev);
-}
-
-// Perform a search and reload table with new data
-let doSearch = (ev) => {
-    
 }
 
 // Pre Populate the sku segment form by using the unique mongoose object id  
@@ -133,6 +153,7 @@ let generateSkuLabels = skus => {
     });
 }
 
+// Grab all seected elements from skus table and generate the labels
 let generateSkuLabelsFromTable = () => {
     skus = [];
     $('tbody>tr.table-active').find('[data-name="skuNum"]').each( function(){
@@ -196,6 +217,7 @@ let navigateSkugenForm = (name) => {
     doNavBtnValidations();
 }
 
+// Select or deselect all rows in the table based on select all option
 let selectAll = ev => {
     let target = $(ev.currentTarget);
     if(target.prop('checked') == true) {
@@ -233,6 +255,7 @@ let selectRow = ev => {
 
 }
 
+// Set the active sku segment option styles for the option selected during generation of skus
 let setActiveOption = (target) => {
     const activePageEl = $('.skugen-form-page')[activePageIndex];
 
