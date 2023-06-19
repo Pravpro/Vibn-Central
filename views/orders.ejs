@@ -1,18 +1,38 @@
 <%- include('partials/header'); %>
 <div class="container">
-    <h1 class="display-4 text-center mb-4 mt-2">Orders Export</h1>
-    <h3 class="text-center">Select a date range to export orders for.</h2>
+    <h1 class="display-4 text-center mb-4 mt-4">Orders Export</h1>
+
+    <!-- Warning Message if email and timeZone have not been set -->
+    <% if (!locals.email || !locals.timeZone){ %>
+        <div class="alert alert-warning" role="alert">
+            <span class="fw-bold">ATTENTION:</span> There must be an Email and Time Zone specified to execte an orders export. Please set this up in the <a href="/settings" class="alert-link">Store Settings</a> page. 
+        </div>
+    <% } %>
+
+    <h3 class="text-center">Select a date range to export orders for</h2>
     <p class=" lead text-center">Clicking the 'Export' button will download a CSV of the orders for the selected date range.</p>
     <div class="row justify-content-center align-items-end">
         <div class="col-4">
             <label class="form-label" for="daterange">Date Range Picker</label>
-            <input class="form-control" type="text" id="daterange" name="daterange" value="" />
+            <input class="form-control" type="text" id="daterange" name="daterange" value="" <% if(!locals.email || !locals.timeZone){ %>disabled<% } %>/>
         </div>
+        <% if(locals.collections){ %>
+            <div class="col-3">
+                <label class="form-label" for="collection">Collections</label>
+                <input class="form-control" type="text" id="collection" name="collection" placeholder="All" list="collections" <% if (!locals.email || !locals.timeZone){ %>disabled<% } %> />
+                
+                <datalist id="collections">
+                    <% for(let i = 0; i < collections.length; i++){ %>
+                        <option data-id="<%- collections[i].id %>" value="<%- collections[i].title %> (<%- collections[i].productsCount %> products)" >
+                    <% } %>
+                </datalist>
+            </div>
+        <% } %>
         <div class="col-auto">
-            <button id="export-btn" class="btn btn-primary">Export</button>
+            <button id="export-btn" class="btn btn-primary" <% if (!locals.email || !locals.timeZone){ %>disabled<% } %>>Export</button>
         </div>
     </div>
-    <!-- Toast -->
+    <!-- Toasts -->
     <div class="toast-wrapper position-absolute top-0 end-0 p-3">
         <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header">
@@ -24,6 +44,37 @@
                 Please select a date range for export.
             </div>
         </div>
+    </div>
+    <div class="toast-wrapper position-absolute top-0 end-0 p-3">
+        <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                <strong class="me-auto">Invalid Collection</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                Please select a valid collection option.
+            </div>
+        </div>
+    </div>
+    <div class="toast-wrapper position-absolute top-0 end-0 p-3">
+        <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="bi bi-check-circle text-success me-2"></i>
+                <strong class="me-auto">Successfully Submitted Request</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                The orders export will be sent to your email (<% if(locals.email){ %><%- email %><% } %>) shortly.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Spinner -->
+<div class="spinner-wrapper d-flex justify-content-center align-items-center position-absolute w-100 h-100 top-0 start-0 d-none">
+    <div class="spinner-border text-warning" role="status">
+        <span class="visually-hidden">Loading...</span>
     </div>
 </div>
 

@@ -9,11 +9,16 @@ const dotenv 				= require('dotenv').config(),
       mongoose				= require('mongoose'),
       Account 				= require("./models/account"),
       formidableMiddleware 	= require('express-formidable'),
-      createCsvWriter       = require('csv-writer').createArrayCsvWriter;
+      createCsvWriter       = require('csv-writer').createArrayCsvWriter,
+      readline              = require('readline'),
+      nodemailer            = require("nodemailer");
 
 const app = express();
+const { constants } = require('buffer');
 const { encrypt, decrypt } = require('./helpers/crypto');
-const { PORT = 3000, NODE_ENV = 'prod', DB_USER, DB_PASSWORD, DB_NAME } = process.env;
+const { Console } = require('console');
+const { json } = require('body-parser');
+const { PORT = 3000, NODE_ENV = 'prod', DB_USER, DB_PASSWORD, DB_NAME, FORWARDING_ADDRESS, NODEMAILER_EMAIL, NODEMAILER_EMAIL_KEY } = process.env;
 
 // Order feature variables
 const fileUploadFolder = 'tmp_image_uploads';
@@ -29,6 +34,14 @@ const paymentMethods = {
 }
 const ORDERS_EXPORT_DIR = './order-exports';
 const SEQUENCE_NUM_TYPE = 'seqNum';
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    // host: 'smtp.gmail.com',
+    auth: {
+      user: NODEMAILER_EMAIL,
+      pass: NODEMAILER_EMAIL_KEY
+    }
+});
 
 // Connect to DB
 mongoose.connect(`mongodb+srv://${DB_USER}:${DB_PASSWORD}@cluster0.ymgd0.mongodb.net/${DB_NAME}?retryWrites=true&w=majority`, {
@@ -216,90 +229,178 @@ app.post('/batch/product/new', isLoggedIn, async (req, res) => {
     }
 });
 
-app.get('/orders', isLoggedIn, (req, res) => {
-    res.render('orders', {shop: req.session.shop});
-});
+app.get('/orders', isLoggedIn, async (req, res) => {
+    try{
+        let accounts = await Account.find({shop: req.session.shop});
+        let account = accounts.length ? accounts[0] : null;
 
-app.post('/orders', isLoggedIn, async (req, res) => {
-    console.log(req.fields.timeZone);
-    // Define after for pagination purposes
-    let response = await getOrders(req.session.shop, req.fields.start, req.fields.end, null);
-    let ordersData = response.data.data.orders.edges;
+        // Get Collections data from store
+        let response = await getCollections(req.session.shop, null);
+        let collections = [];
+        response.data.data.collections.edges.forEach(collectionEdge => {
+            collections.push({
+                id: collectionEdge.node.id,
+                title: collectionEdge.node.title,
+                productsCount: collectionEdge.node.productsCount,
+            });
+        });
 
-    if(!fs.existsSync(ORDERS_EXPORT_DIR)) fs.mkdirSync(ORDERS_EXPORT_DIR);
-
-    // Create the CSV writer
-    const csvWriter = createCsvWriter({
-        header: ['Date', 'Product ID', 'Product Name', 'Customer', 'Address', 'Cost of Good', 'Payment Method', 'Sale Price'],
-        path: `${ORDERS_EXPORT_DIR}/${req.session.shop}.csv`
-    });
-
-    let records = [];
-    for(let i = 0; i < ordersData.length; i++){
-        let order = ordersData[i].node;
-        // Field Vars
-        let dateString = '',
-            customerName = '',
-            address = '',
-            paymentMethod = '',
-            salePrice = '',
-            salesTax = '';
-        
-        // Date field
-        if(order.createdAt) {
-            dateString = new Date(order.createdAt).toLocaleDateString("en-US", {timeZone: req.fields.timeZone});   
-        }
-
-        if(order.shippingAddress){
-            // Customer Field
-            if(order.shippingAddress.firstName) customerName += order.shippingAddress.firstName;
-            if(order.shippingAddress.lastName) customerName += ` ${order.shippingAddress.lastName}`;
-            // Address Field
-            if(order.shippingAddress.address1) address += `${order.shippingAddress.address1}`;
-            if(order.shippingAddress.address2) address += `\n${order.shippingAddress.address2}`;
-            if(order.shippingAddress.city) address += `\n${order.shippingAddress.city} ${order.shippingAddress.provinceCode} ${order.shippingAddress.zip}`;
-            if(order.shippingAddress.country) address += `\n${order.shippingAddress.country}`;
-        }
-        // Payment Method
-        if(order.paymentGatewayNames.length) paymentMethod += `${paymentMethods[order.paymentGatewayNames[0]] ? paymentMethods[order.paymentGatewayNames[0]] : order.paymentGatewayNames[0]}`
-
-        // Sale Price Field
-        if(order.totalPriceSet) salePrice = `${currencySymbols[order.totalPriceSet.shopMoney.currencyCode]}${order.totalPriceSet.shopMoney.amount - order.totalTaxSet.shopMoney.amount}`;
-        
-        // Create a record for each product in the order
-        for(let j = 0; j < order.lineItems.edges.length; j++){
-            let product = order.lineItems.edges[j].node;
-            let costOfGood = product.variant && product.variant.inventoryItem && product.variant.inventoryItem.unitCost ? `${currencySymbols[product.variant.inventoryItem.unitCost.currencyCode]}${product.variant.inventoryItem.unitCost.amount}` : '0';
-            // Create record and only put salePrice and tax on first item
-            records.push([dateString, product.sku, product.name, customerName, address, costOfGood, (j ? '' : paymentMethod), (j ? '' : salePrice)]);
-        }
-
+        // Prep renderOptions for the page
+        let renderOptions = {shop: req.session.shop, collections: collections}
+        if(account && account.storeProperties) for(let [key, value] of account.storeProperties) renderOptions[key] = value;
+        // Render Order page
+        res.render('orders', renderOptions);
     }
+    catch(e){
+        console.error(e);
+        res.status(400).send(e);
+    }
+});
+
+// Create a bulk data orders request to Shopify for the specified date range
+app.post('/orders', isLoggedIn, async (req, res) => {
+    let error = await getOrdersv2(req.session.shop, req.fields.start, req.fields.end, req.fields.collectionId);
+    if(error) res.status(404).send();
+    else res.status(200).send();
+    console.log('Order Request sent');
+});
+
+// This route is used to handle webhook payload from the bulk_operations/finish topic. This callback handles the creation of the export file
+app.post('/orders/export', async (req, res) => {
+    res.status(200).send('Status: OK');
+    console.log('bulk_operations/finish Webhook returned:');
+    console.log(req.fields);
+
+    // Query for getting the file url from the completed bulk operation
+    data = {
+        query: `
+          query {
+            node(id: "${req.fields.admin_graphql_api_id}") {
+              ... on BulkOperation {
+                url
+                partialDataUrl
+              }
+            }
+          }
+        `
+    }
+
+    try{
+        // TODO: Error Handling if no Account returned
+        let accounts = await Account.find({shop: req.headers['x-shopify-shop-domain']});
+        let account = accounts.length ? accounts[0] : null;
+        
+        let bulkOpRes = await makeApiCall(req.headers['x-shopify-shop-domain'], data);
     
-    csvWriter.writeRecords(records)       // returns a promise
-    .then(() => {
-        console.log('...Done');
-        switch (req.accepts(['html', 'json'])) { //possible response types, in order of preference
-            case 'html':
-                res.redirect("/orders/export");
-                break;
-            case 'json':
-                res.send({redirect: "/orders/export"});
-                break;
+        // Retrieve the JSONL file of orders if a valid URL was returned
+        // TODO: Error Handling if no URL
+        if(bulkOpRes.data.data.node.url){
+            let ordersRes = await axios.get(bulkOpRes.data.data.node.url, {
+                responseType: 'stream'
+            });
+            
+            // TODO: Error Handling if not status 200
+            if(ordersRes.status == 200){
+
+                const rl = readline.createInterface({
+                    input: ordersRes.data
+                });
+
+                // Build the records for writing to the csv file    
+                if(!fs.existsSync(ORDERS_EXPORT_DIR)) fs.mkdirSync(ORDERS_EXPORT_DIR);
+    
+                // Create the CSV writer
+                const csvWriter = createCsvWriter({
+                    header: ['Date', 'Product ID', 'Product Name', 'Customer', 'Address', 'Cost of Good', 'Payment Method', 'Sale Price'],
+                    path: `${ORDERS_EXPORT_DIR}/${req.headers['x-shopify-shop-domain']}.csv`
+                });
+    
+                let records = [];
+                let currentOrder = null;
+
+                // Build the records to write to CSV file
+                for await (const line of rl){
+                    let jsonObj = JSON.parse(line);
+                    // BASE CASE: Current Order is null when loop begins. Set currentOrder to the order JSON object line that comes in and continue.
+                    if(!currentOrder){
+                        currentOrder = jsonObj;
+                        continue;
+                    }
+                    // CASE: The JSON object represents a Order Line Item. Add line item to list of line items of current order only if it is part of specified collection.
+                    else if(jsonObj.__parentId){
+                        if('product' in jsonObj){
+                            if(jsonObj.product?.inCollection) currentOrder.lineItems ? currentOrder.lineItems.push(jsonObj) : currentOrder.lineItems = [jsonObj]
+                        } else {
+                            currentOrder.lineItems ? currentOrder.lineItems.push(jsonObj) : currentOrder.lineItems = [jsonObj];
+                        }
+                        continue;
+                    }
+                    // CASE: currentOrder now represents a complete order with all LineItems and is ready to be created as a record for the orders CSV. 
+                    //  Only process if there are Line Items.
+                    if(currentOrder.lineItems && currentOrder.lineItems.length){
+                        records.push(...createOrderRecords(currentOrder, account.storeProperties.timeZone));
+                    }
+
+                    // Set Current Order with next order.
+                    currentOrder = jsonObj;
+                }
+
+                // Process last order
+                if(currentOrder.lineItems && currentOrder.lineItems.length){
+                    records.push(...createOrderRecords(currentOrder, account.storeProperties.timeZone));
+                }
+    
+                // Write records to a csv file
+                await csvWriter.writeRecords(records);
+                
+                // Send file to the email specified
+                let today = new Date();
+                await transporter.sendMail({
+                    from: NODEMAILER_EMAIL,
+                    to: account.storeProperties.get('email'),
+                    subject: 'Order Export',
+                    text: 'Successfully Exported Orders',
+                    attachments:[
+                        {
+                            filename: `Orders-Export_${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}.csv`,
+                            path: `${ORDERS_EXPORT_DIR}/${req.headers['x-shopify-shop-domain']}.csv`
+                        }
+                    ]
+                });
+                console.log('Email sent');
+                // console.log(info);
+
+            }
         }
-    })
-    .catch(e => {
+    } catch(e){
         console.log(e);
-        res.status(500).send("Failed to write to CSV.")
-    } );
+    }
 
 });
 
-app.get('/orders/export', isLoggedIn, (req, res) => {
-    // Get the CSV file for that shop
-    res.download(path.join(__dirname, `order-exports/${req.session.shop}.csv`));
+app.get('/settings', isLoggedIn, async(req, res) => {
+    let accounts = await Account.find({shop: req.session.shop});
+    let account = accounts.length ? accounts[0] : null;
 
-    // Maybe delete file after
+    console.log(account);
+
+    renderOptions = account ? {shop: req.session.shop, ...Object.fromEntries(account.storeProperties.entries())} : {shop: req.session.shop}
+
+    console.log(renderOptions);
+
+    res.render('settings', renderOptions);
+});
+
+app.post('/settings', isLoggedIn, async(req, res) => {
+    let accounts = await Account.find({shop: req.session.shop});
+    let account = accounts.length ? accounts[0] : null;
+
+    console.log(req.fields);
+
+    account.storeProperties = req.fields;
+    await account.save();
+
+    res.status(200).send();
 });
 
 // This route will eventually hold the index page for skugen, redirecting to sku route for now
@@ -570,73 +671,207 @@ function createUrlWithSearchParams(url, params){
     return `${url}?${qs}`;
 }
 
-// Recursively receive all the orders
-async function getOrders(shop, startTime, endTime, after){
-    console.log("Iterate");
-    data = {
-        query: `
-            query {
-              orders(first: 10, ${after ? `after:"${after}", `: ''}query:"created_at:>=${startTime} created_at:<=${endTime}") {
+function createOrderRecords(order, timeZone){
+    let records = [];
+
+    // Field Vars
+    let dateString = '',
+    customerName = '',
+    address = '',
+    paymentMethod = '',
+    salePrice = '',
+    salesTax = '';
+
+    // Date field
+    if(order.createdAt) {
+        dateString = new Date(order.createdAt).toLocaleDateString("en-US", {timeZone: timeZone});   
+    }
+
+    if(order.shippingAddress){
+        // Customer Field
+        if(order.shippingAddress.firstName) customerName += order.shippingAddress.firstName;
+        if(order.shippingAddress.lastName) customerName += ` ${order.shippingAddress.lastName}`;
+        // Address Field
+        if(order.shippingAddress.address1) address += `${order.shippingAddress.address1}`;
+        if(order.shippingAddress.address2) address += `\n${order.shippingAddress.address2}`;
+        if(order.shippingAddress.city) address += `\n${order.shippingAddress.city} ${order.shippingAddress.provinceCode} ${order.shippingAddress.zip}`;
+        if(order.shippingAddress.country) address += `\n${order.shippingAddress.country}`;
+    }
+    // Payment Method
+    if(order.paymentGatewayNames.length) paymentMethod += `${paymentMethods[order.paymentGatewayNames[0]] ? paymentMethods[order.paymentGatewayNames[0]] : order.paymentGatewayNames[0]}`
+
+    // Sale Price Field
+    if(order.totalPriceSet) salePrice = `${currencySymbols[order.totalPriceSet.shopMoney.currencyCode]}${order.totalPriceSet.shopMoney.amount - order.totalTaxSet.shopMoney.amount}`;
+
+    // Create a record for each product in the order
+    for(let j = 0; j < order.lineItems.length; j++){
+        let product = order.lineItems[j];
+        let costOfGood = product.variant && product.variant.inventoryItem && product.variant.inventoryItem.unitCost ? `${currencySymbols[product.variant.inventoryItem.unitCost.currencyCode]}${product.variant.inventoryItem.unitCost.amount}` : '0';
+        // Create record and only put salePrice and tax on first item
+        records.push([dateString, product.sku, product.name, customerName, address, costOfGood, (j ? '' : paymentMethod), (j ? '' : salePrice)]);
+    }
+
+    return records;
+}
+
+async function getOrdersv2(shop, startTime, endTime, collectionId){
+    // Query String for Orders to be retrieved
+    const queryString = `
+      {
+        orders(query:"created_at:>=${startTime} created_at:<=${endTime}") {
+          edges {
+            node {
+              id
+              createdAt
+              lineItems {
                 edges {
                   node {
-                    createdAt
-                    lineItems(first:25) {
-                      edges {
-                        node {
-                          name
-                          sku
-                          variant {
-                            inventoryItem {
-                              unitCost {
-                                amount
-                                currencyCode
-                              }
-                            }
-                          }
+                    id
+                    name
+                    sku
+                    ${collectionId ? `product{
+                      inCollection(id:"${collectionId}")
+                    }` : ''}
+                    variant {
+                      inventoryItem {
+                        unitCost {
+                          amount
+                          currencyCode
                         }
                       }
                     }
-                    shippingAddress {
-                      firstName
-                      lastName
-                      address1
-                      address2
-                      city
-                      provinceCode
-                      zip
-                      country
-                    }
-                    paymentGatewayNames
-                    totalPriceSet{
-                      shopMoney{
-                        amount
-                        currencyCode
-                      }
-                    }
-                    totalTaxSet{
-                      shopMoney{
-                        amount
-                      }
-                    }
                   }
-                  cursor
                 }
-                pageInfo {
-                  hasNextPage
+              }
+              shippingAddress {
+                firstName
+                lastName
+                address1
+                address2
+                city
+                provinceCode
+                zip
+                country
+              }
+              paymentGatewayNames
+              totalPriceSet{
+                shopMoney{
+                  amount
+                  currencyCode
+                }
+              }
+              totalTaxSet{
+                shopMoney{
+                  amount
                 }
               }
             }
+          }
+        }
+      }
+    `
+    // the bulk query set up for orders
+    const data = {
+        query: `
+          mutation {
+            bulkOperationRunQuery(
+              query:"""
+                ${queryString}
+              """
+            ) {
+              bulkOperation {
+                id
+                status
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `
+    }
+
+    // Query for subscribing to bulk_operations/finish webhook
+    const webhookData = {
+        query: `
+          mutation {
+            webhookSubscriptionCreate(
+              topic: BULK_OPERATIONS_FINISH
+              webhookSubscription: {
+                format: JSON,
+                callbackUrl: "${FORWARDING_ADDRESS}/orders/export"}
+            ) {
+              userErrors {
+                field
+                message
+              }
+              webhookSubscription {
+                id
+              }
+            }
+          }
+        `
+    }
+
+    try{
+        // Make API callout
+        let response = await makeApiCall(shop, data);
+        console.log(response.data.data);
+        let errors = response.data.data.bulkOperationRunQuery.userErrors;
+
+        if(errors && errors.length > 0) {
+            for(let i = 0; i < errors.length; i++) {
+                console.error(errors[i].message);
+            }
+            return errors[0].message;
+        }
+        else{
+            // Subscribe to the bulk_operations/finish webhook topic
+            makeApiCall(shop, webhookData);
+            return 0;
+        }
+    } catch(e){
+        console.log(e);
+    }
+}
+
+/**
+ * @description Recursively retrieve collections from store.
+ * @param shop - name of the shop to get the segment from
+ * @param after - Id of the collection after which to get the collections (used for recursive call)
+ * @return Response after getting all the collections
+ */
+async function getCollections(shop, after){
+    console.log("Iterate");
+    data = {
+        query: `
+          query {
+            collections(first:50${after ? `, after:"${after}", `: ''}){
+              edges {
+                node {
+                  id
+                  title
+                  productsCount
+                }
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+              }
+            }
+          }
         `
     }
     try{
         let response = await makeApiCall(shop, data);
         if(response.data.errors) console.log(response.data.errors);
-        if(response.data.data.orders.pageInfo.hasNextPage) {
+        if(response.data.data.collections.pageInfo.hasNextPage) {
             // Recursive Case
-            let after = response.data.data.orders.edges[response.data.data.orders.edges.length-1].cursor;
-            let nextRes = await getOrders(shop, startTime, endTime, after);
-            nextRes.data.data.orders.edges.forEach((edge) => {
-                response.data.data.orders.edges.push(edge);
+            let after = response.data.data.collections.edges[response.data.data.collections.edges.length-1].cursor;
+            let nextRes = await getCollections(shop, after);
+            nextRes.data.data.collections.edges.forEach((edge) => {
+                response.data.data.collections.edges.push(edge);
             });
         }
         // Base Case
@@ -715,7 +950,7 @@ async function makeApiCall(shop, data) {
     try {
         // Get AccessToken for shop
         const foundShop = await Account.find({ shop: shop });
-        console.log(foundShop);
+        // console.log(foundShop);
         if (foundShop.length == 0 ) {throw "ERR: Can't find the shop in Accounts."}
 
         let config = {

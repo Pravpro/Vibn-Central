@@ -21,7 +21,8 @@ const AccountSchema = new Schema({
 	accessToken: Object,
 	skuFormat: [ FormatSegmentSchema ],
 	skuCounter: { type: Map, of: Number },
-	skuRecords: [ SkuPropertiesSchema ]
+	skuRecords: [ SkuPropertiesSchema ],
+	storeProperties: Map
 });
 
 // Model

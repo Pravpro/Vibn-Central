@@ -1,0 +1,55 @@
+<%- include('partials/header'); %>
+
+<div class="container">
+    <h1 class="display-4 text-center mb-4 mt-4">Store Settings</h1>
+
+    <form action="/settings" method="post">
+        <div class="mb-3">
+            <h2 class="display-6 mb-3">Order Export Settings</h2>
+            <div class="mb-3 row">
+                <label for="email" class="col-sm-2 col-form-label">Email</label>
+                <div class="col-md-6">
+                    <input type="text" class="form-control" id="email" name="email" value="<% if(locals.email){ %><%- email %><% } %>">
+                </div>
+            </div>
+            <div class="mb-3 row">
+                <label for="time-zone" class="col-md-2 col-form-label">Time Zone</label>
+                <div class="col-md-6">
+                    <input type="text" class="form-control" id="time-zone" name="timeZone" list="time-zone-list" value="<% if(locals.timeZone){ %><%- timeZone %><% } %>">
+                    <datalist id="time-zone-list"></datalist>
+                </div>
+                <div class="col-md-2">
+                    <button id="detect-timezone-btn" type="button" class="btn btn-secondary">Auto-Detect</button>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-primary">Save Changes</button>
+    </form>
+
+    <!-- Toast -->
+    <div class="toast-wrapper position-absolute top-0 end-0 p-3">
+        <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="bi bi-check-circle text-success me-2"></i>
+                <strong class="me-auto">Success</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                Your store settings have been successfully updated.
+            </div>
+        </div>
+    </div>
+    
+</div>
+
+<!-- Loading Spinner -->
+<div class="spinner-wrapper d-flex justify-content-center align-items-center position-absolute w-100 h-100 top-0 start-0 d-none">
+    <div class="spinner-border text-warning" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<%- include('partials/scripts') %>
+<script type="text/javascript" src="/scripts/settings.js"></script>
+
+<%- include('partials/footer'); %>
