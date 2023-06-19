@@ -27,15 +27,16 @@
             <div class="collapse navbar-collapse justify-content-between" id="navbarNavAltMarkup">
                 <div class="navbar-nav">
                     <a class="nav-link active" aria-current="page" href="/">Home</a>
-                    <% if(shop) { %>
+                    <% if(locals.shop) { %>
                         <a class="nav-link" href="/batch/new">Upload</a>
                         <a class="nav-link" href="/orders">Orders</a>
                         <a class="nav-link" href="/skugen/sku">Skugen</a>
                     <% } %>
                 </div>
                 <div class="navbar-nav">
-                    <% if(shop) { %>
-                        <a href="/logout" class="nav-link">Logout <i class="bi bi-person-dash"></i></a>
+                    <% if(locals.shop) { %>
+                        <a class="nav-link" href="/settings">Settings <i class="bi bi-gear"></i></a>
+                        <a class="nav-link" href="/logout">Logout <i class="bi bi-person-dash"></i></a>
                     <% } else { %>
                         <!-- <a href="/login" class="nav-link">Login <i class="bi bi-person"></i></a> -->
                     <% } %>
