@@ -384,7 +384,7 @@ app.get('/settings', isLoggedIn, async(req, res) => {
 
     console.log(account);
 
-    renderOptions = account ? {shop: req.session.shop, ...Object.fromEntries(account.storeProperties.entries())} : {shop: req.session.shop}
+    renderOptions = account && account.storeProperties ? {shop: req.session.shop, ...Object.fromEntries(account.storeProperties.entries())} : {shop: req.session.shop}
 
     console.log(renderOptions);
 
