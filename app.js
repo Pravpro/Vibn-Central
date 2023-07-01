@@ -18,7 +18,7 @@ const { constants } = require('buffer');
 const { encrypt, decrypt } = require('./helpers/crypto');
 const { Console } = require('console');
 const { json } = require('body-parser');
-const { PORT = 3000, NODE_ENV = 'prod', DB_USER, DB_PASSWORD, DB_NAME, FORWARDING_ADDRESS, NODEMAILER_EMAIL, NODEMAILER_EMAIL_KEY } = process.env;
+const { PORT = 3000, NODE_ENV = 'prod', DB_USER, DB_PASSWORD, DB_NAME, FORWARDING_ADDRESS, NODEMAILER_SERVICE, NODEMAILER_EMAIL, NODEMAILER_EMAIL_KEY } = process.env;
 
 // Order feature variables
 const fileUploadFolder = 'tmp_image_uploads';
@@ -35,8 +35,7 @@ const paymentMethods = {
 const ORDERS_EXPORT_DIR = './order-exports';
 const SEQUENCE_NUM_TYPE = 'seqNum';
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    // host: 'smtp.gmail.com',
+    service: NODEMAILER_SERVICE,
     auth: {
       user: NODEMAILER_EMAIL,
       pass: NODEMAILER_EMAIL_KEY
