@@ -45,7 +45,7 @@ const transporter = nodemailer.createTransport({
         type: 'OAuth2',
         user: NODEMAILER_SENDER,
         serviceClient: GCLOUD_APP_CLIENT_ID,
-        privateKey: GCLOUD_APP_PRIVATE_KEY
+        privateKey: GCLOUD_APP_PRIVATE_KEY.replace(/\\n/g, "\n")
     }
 });
 
