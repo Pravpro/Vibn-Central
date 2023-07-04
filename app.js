@@ -18,7 +18,10 @@ const { constants } = require('buffer');
 const { encrypt, decrypt } = require('./helpers/crypto');
 const { Console } = require('console');
 const { json } = require('body-parser');
-const { PORT = 3000, NODE_ENV = 'prod', DB_USER, DB_PASSWORD, DB_NAME, FORWARDING_ADDRESS, NODEMAILER_EMAIL, NODEMAILER_EMAIL_KEY } = process.env;
+const { 
+    PORT = 3000, NODE_ENV = 'prod', DB_USER, DB_PASSWORD, DB_NAME, FORWARDING_ADDRESS, GCLOUD_APP_CLIENT_ID,
+    GCLOUD_APP_PRIVATE_KEY,  NODEMAILER_HOST, NODEMAILER_SENDER, NODEMAILER_PORT
+} = process.env;
 
 // Order feature variables
 const fileUploadFolder = 'tmp_image_uploads';
@@ -35,11 +38,14 @@ const paymentMethods = {
 const ORDERS_EXPORT_DIR = './order-exports';
 const SEQUENCE_NUM_TYPE = 'seqNum';
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    // host: 'smtp.gmail.com',
+    host: NODEMAILER_HOST,
+    port: NODEMAILER_PORT,
+    secure: true,
     auth: {
-      user: NODEMAILER_EMAIL,
-      pass: NODEMAILER_EMAIL_KEY
+        type: 'OAuth2',
+        user: NODEMAILER_SENDER,
+        serviceClient: GCLOUD_APP_CLIENT_ID,
+        privateKey: GCLOUD_APP_PRIVATE_KEY.replace(/\\n/g, "\n")
     }
 });
 
@@ -311,7 +317,7 @@ app.post('/orders/export', async (req, res) => {
     
                 // Create the CSV writer
                 const csvWriter = createCsvWriter({
-                    header: ['Date', 'Product ID', 'Product Name', 'Customer', 'Address', 'Cost of Good', 'Payment Method', 'Sale Price'],
+                    header: ['Date', 'Product ID', 'Product Name', 'Customer', 'Address', 'Cost of Good', 'Payment Method', 'Sale Price', 'Sales Tax'],
                     path: `${ORDERS_EXPORT_DIR}/${req.headers['x-shopify-shop-domain']}.csv`
                 });
     
@@ -356,10 +362,10 @@ app.post('/orders/export', async (req, res) => {
                 // Send file to the email specified
                 let today = new Date();
                 await transporter.sendMail({
-                    from: NODEMAILER_EMAIL,
+                    from: NODEMAILER_SENDER,
                     to: account.storeProperties.get('email'),
-                    subject: 'Order Export',
-                    text: 'Successfully Exported Orders',
+                    subject: 'Orders Export',
+                    text: 'Successfully exported orders. Please find the atached export file.',
                     attachments:[
                         {
                             filename: `Orders-Export_${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}.csv`,
@@ -671,6 +677,7 @@ function createUrlWithSearchParams(url, params){
     return `${url}?${qs}`;
 }
 
+// Return a complete set of an order's line items rows
 function createOrderRecords(order, timeZone){
     let records = [];
 
@@ -703,12 +710,15 @@ function createOrderRecords(order, timeZone){
     // Sale Price Field
     if(order.totalPriceSet) salePrice = `${currencySymbols[order.totalPriceSet.shopMoney.currencyCode]}${order.totalPriceSet.shopMoney.amount - order.totalTaxSet.shopMoney.amount}`;
 
+    // Sales Tax Field
+    if(order.totalTaxSet) salesTax = `${currencySymbols[order.totalTaxSet.shopMoney.currencyCode]}${order.totalTaxSet.shopMoney.amount}`;
+
     // Create a record for each product in the order
     for(let j = 0; j < order.lineItems.length; j++){
         let product = order.lineItems[j];
         let costOfGood = product.variant && product.variant.inventoryItem && product.variant.inventoryItem.unitCost ? `${currencySymbols[product.variant.inventoryItem.unitCost.currencyCode]}${product.variant.inventoryItem.unitCost.amount}` : '0';
         // Create record and only put salePrice and tax on first item
-        records.push([dateString, product.sku, product.name, customerName, address, costOfGood, (j ? '' : paymentMethod), (j ? '' : salePrice)]);
+        records.push([dateString, product.sku, product.name, customerName, address, costOfGood, (j ? '' : paymentMethod), (j ? '' : salePrice), (j ? '' : salesTax)]);
     }
 
     return records;
@@ -763,6 +773,7 @@ async function getOrdersv2(shop, startTime, endTime, collectionId){
               totalTaxSet{
                 shopMoney{
                   amount
+                  currencyCode
                 }
               }
             }
