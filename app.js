@@ -317,13 +317,13 @@ app.post('/orders/export', async (req, res) => {
     
                 // Create the CSV writer
                 const csvWriter = createCsvWriter({
-                    header: ['Date', 'Product ID', 'Product Name', 'Customer', 'Address', 'Cost of Good', 'Payment Method', 'Sale Price', 'Sales Tax'],
+                    header: ['Date', 'Product ID', 'Product Name', 'Customer', 'Address', 'Cost of Good', 'Qty', 'Payment Method', 'Sale Price', 'Sales Tax', 'Location'],
                     path: `${ORDERS_EXPORT_DIR}/${req.headers['x-shopify-shop-domain']}.csv`
                 });
     
                 let records = [];
                 let currentOrder = null;
-
+                
                 // Build the records to write to CSV file
                 for await (const line of rl){
                     let jsonObj = JSON.parse(line);
@@ -344,7 +344,7 @@ app.post('/orders/export', async (req, res) => {
                     // CASE: currentOrder now represents a complete order with all LineItems and is ready to be created as a record for the orders CSV. 
                     //  Only process if there are Line Items.
                     if(currentOrder.lineItems && currentOrder.lineItems.length){
-                        records.push(...createOrderRecords(currentOrder, account.storeProperties.timeZone));
+                        records.push(...buildSingleOrderRecords(currentOrder, account.storeProperties.timeZone));
                     }
 
                     // Set Current Order with next order.
@@ -353,7 +353,7 @@ app.post('/orders/export', async (req, res) => {
 
                 // Process last order
                 if(currentOrder.lineItems && currentOrder.lineItems.length){
-                    records.push(...createOrderRecords(currentOrder, account.storeProperties.timeZone));
+                    records.push(...buildSingleOrderRecords(currentOrder, account.storeProperties.timeZone));
                 }
     
                 // Write records to a csv file
@@ -374,7 +374,6 @@ app.post('/orders/export', async (req, res) => {
                     ]
                 });
                 console.log('Email sent');
-                // console.log(info);
 
             }
         }
@@ -388,11 +387,7 @@ app.get('/settings', isLoggedIn, async(req, res) => {
     let accounts = await Account.find({shop: req.session.shop});
     let account = accounts.length ? accounts[0] : null;
 
-    console.log(account);
-
     renderOptions = account && account.storeProperties ? {shop: req.session.shop, ...Object.fromEntries(account.storeProperties.entries())} : {shop: req.session.shop}
-
-    console.log(renderOptions);
 
     res.render('settings', renderOptions);
 });
@@ -400,8 +395,6 @@ app.get('/settings', isLoggedIn, async(req, res) => {
 app.post('/settings', isLoggedIn, async(req, res) => {
     let accounts = await Account.find({shop: req.session.shop});
     let account = accounts.length ? accounts[0] : null;
-
-    console.log(req.fields);
 
     account.storeProperties = req.fields;
     await account.save();
@@ -434,7 +427,6 @@ app.get('/skugen/sku', isLoggedIn, async(req, res) => {
     // Table Data
     let accounts = searchStr ? await getSearchResults(req.session.shop, searchStr) : await Account.find({shop: req.session.shop});
     let account = accounts.length ? accounts[0] : null;
-    console.log(account);
     if(account) {
 
         account.skuRecords.sort((a, b) => {
@@ -476,7 +468,7 @@ app.get('/skugen/sku', isLoggedIn, async(req, res) => {
 
 // Process the data for creating a sku
 app.post('/skugen/sku', isLoggedIn, async(req, res) => {
-    console.log(req.fields);
+    // console.log(req.fields);
 
     let accounts = await Account.find({shop: req.session.shop});
     let account = accounts.length ? accounts[0] : null;
@@ -491,8 +483,8 @@ app.post('/skugen/sku', isLoggedIn, async(req, res) => {
                 skuPrefix += segment.data.get(req.fields.segments[segment.name]);
             } else seqNumSeg = segment;
         });
-        console.log(skuPrefix);
-        console.log(seqNumSeg);
+        // console.log(skuPrefix);
+        // console.log(seqNumSeg);
 
         let curCount = account.skuCounter && account.skuCounter.get(skuPrefix) ? account.skuCounter.get(skuPrefix) : parseInt(seqNumSeg.data.get(''))-1;
         let seqNumLength = seqNumSeg.data.get('').length;
@@ -678,20 +670,21 @@ function createUrlWithSearchParams(url, params){
 }
 
 // Return a complete set of an order's line items rows
-function createOrderRecords(order, timeZone){
+function buildSingleOrderRecords(order, timeZone) {
     let records = [];
 
     // Field Vars
     let dateString = '',
-    customerName = '',
-    address = '',
-    paymentMethod = '',
-    salePrice = '',
-    salesTax = '';
+        customerName = '',
+        address = '',
+        paymentMethod = '',
+        salePrice = '',
+        salesTax = '',
+        location = '';
 
     // Date field
     if(order.createdAt) {
-        dateString = new Date(order.createdAt).toLocaleDateString("en-US", {timeZone: timeZone});   
+        dateString = new Date(order.createdAt).toLocaleDateString("en-US", { timeZone: timeZone });
     }
 
     if(order.shippingAddress){
@@ -705,7 +698,7 @@ function createOrderRecords(order, timeZone){
         if(order.shippingAddress.country) address += `\n${order.shippingAddress.country}`;
     }
     // Payment Method
-    if(order.paymentGatewayNames.length) paymentMethod += `${paymentMethods[order.paymentGatewayNames[0]] ? paymentMethods[order.paymentGatewayNames[0]] : order.paymentGatewayNames[0]}`
+    if(order.paymentGatewayNames.length) paymentMethod += `${paymentMethods[order.paymentGatewayNames[0]] ? paymentMethods[order.paymentGatewayNames[0]] : order.paymentGatewayNames[0]}`;
 
     // Sale Price Field
     if(order.totalPriceSet) salePrice = `${currencySymbols[order.totalPriceSet.shopMoney.currencyCode]}${order.totalPriceSet.shopMoney.amount - order.totalTaxSet.shopMoney.amount}`;
@@ -713,12 +706,32 @@ function createOrderRecords(order, timeZone){
     // Sales Tax Field
     if(order.totalTaxSet) salesTax = `${currencySymbols[order.totalTaxSet.shopMoney.currencyCode]}${order.totalTaxSet.shopMoney.amount}`;
 
+    // Location Field
+    if(order.fulfillments.length) {
+        for(let j = 0; j < order.fulfillments.length; j++){
+            if(!j) location = order.fulfillments[j].location.name;
+            else location += `, ${order.fulfillments[j].location.name}`;
+        }
+    }
+
     // Create a record for each product in the order
     for(let j = 0; j < order.lineItems.length; j++){
         let product = order.lineItems[j];
         let costOfGood = product.variant && product.variant.inventoryItem && product.variant.inventoryItem.unitCost ? `${currencySymbols[product.variant.inventoryItem.unitCost.currencyCode]}${product.variant.inventoryItem.unitCost.amount}` : '0';
         // Create record and only put salePrice and tax on first item
-        records.push([dateString, product.sku, product.name, customerName, address, costOfGood, (j ? '' : paymentMethod), (j ? '' : salePrice), (j ? '' : salesTax)]);
+        records.push([
+            dateString, 
+            product.sku, 
+            product.name, 
+            customerName, 
+            address, 
+            costOfGood, 
+            product.currentQuantity, 
+            (j ? '' : paymentMethod), 
+            (j ? '' : salePrice), 
+            (j ? '' : salesTax), 
+            location
+        ]);
     }
 
     return records;
@@ -733,6 +746,11 @@ async function getOrdersv2(shop, startTime, endTime, collectionId){
             node {
               id
               createdAt
+              fulfillments {
+                location {
+                  name
+                }
+              }
               lineItems {
                 edges {
                   node {
@@ -742,6 +760,7 @@ async function getOrdersv2(shop, startTime, endTime, collectionId){
                     ${collectionId ? `product{
                       inCollection(id:"${collectionId}")
                     }` : ''}
+                    currentQuantity
                     variant {
                       inventoryItem {
                         unitCost {
@@ -828,7 +847,7 @@ async function getOrdersv2(shop, startTime, endTime, collectionId){
     try{
         // Make API callout
         let response = await makeApiCall(shop, data);
-        console.log(response.data.data);
+        // console.log(response.data.data);
         let errors = response.data.data.bulkOperationRunQuery.userErrors;
 
         if(errors && errors.length > 0) {
@@ -854,7 +873,7 @@ async function getOrdersv2(shop, startTime, endTime, collectionId){
  * @return Response after getting all the collections
  */
 async function getCollections(shop, after){
-    console.log("Iterate");
+    // console.log("Iterate");
     data = {
         query: `
           query {
