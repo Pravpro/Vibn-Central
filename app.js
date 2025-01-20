@@ -244,6 +244,7 @@ app.get('/orders', isLoggedIn, async (req, res) => {
         let response = await getCollections(req.session.shop, null);
         let collections = [];
         response.data.data.collections.edges.forEach(collectionEdge => {
+            console.log(collectionEdge.node);
             collections.push({
                 id: collectionEdge.node.id,
                 title: collectionEdge.node.title,
@@ -882,7 +883,9 @@ async function getCollections(shop, after){
                 node {
                   id
                   title
-                  productsCount
+                  productsCount {
+                    count
+                  }
                 }
                 cursor
               }

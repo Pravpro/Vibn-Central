@@ -23,7 +23,7 @@
                 
                 <datalist id="collections">
                     <% for(let i = 0; i < collections.length; i++){ %>
-                        <option data-id="<%- collections[i].id %>" value="<%- collections[i].title %> (<%- collections[i].productsCount %> products)" >
+                        <option data-id="<%- collections[i].id %>" value="<%- collections[i].title %> (<%- collections[i].productsCount.count %> products)" >
                     <% } %>
                 </datalist>
             </div>
